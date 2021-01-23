@@ -2,6 +2,8 @@
 #include <ILI9341_t3.h>
 #include <Adafruit_MSA301.h>
 
+#include "main.h"
+
 typedef union
 {
     struct

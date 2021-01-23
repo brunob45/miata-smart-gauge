@@ -3,8 +3,10 @@
 
 #include <Arduino.h>
 
-void update_accel(void);
+#include "accel.h"
+#include "display.h"
+#include "global_variables.h"
+
 void update_values(void);
-void update_display(void);
 
 #endif // MAIN_H

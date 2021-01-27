@@ -1,15 +1,11 @@
-#if !defined(ACCEL_H)
-#define ACCEL_H
+#if !defined(BB_ACCEL_H)
+#define BB_ACCEL_H
 
-void update_accel(void);
-
-class AccelClass
+namespace Accel
 {
-public:
-    AccelClass() {}
-    void init();
-    void update();
-    void print_debug(Print& p);
-};
+void init();
+void update();
+void print_debug(Print& p);
+}; // namespace Accel
 
-#endif // ACCEL_H
+#endif // BB_ACCEL_H

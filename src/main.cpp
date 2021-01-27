@@ -1,23 +1,24 @@
 
 #include "main.h"
 
-DisplayClass Display(6);
-AccelClass Accel;
 GVStruct GV;
 
 int16_t rpm_inc = 100;
 
 void setup()
 {
-    Accel.init();
-    Display.init();
+    Accel::init();
+    Display::init();
+    Display::setLumi(50);
+    Comm::init();
 }
 
 void loop(void)
 {
-    Accel.update();
+    Accel::update();
+    Comm::update();
     update_values();
-    Display.update();
+    Display::update();
 }
 
 void update_values()

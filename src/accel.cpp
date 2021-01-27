@@ -2,17 +2,19 @@
 
 #include <Adafruit_MSA301.h>
 
+namespace Accel
+{
 namespace
 {
 Adafruit_MSA301 msa;
 }
 
-void AccelClass::init()
+void init()
 {
     msa.begin();
 }
 
-void AccelClass::update()
+void update()
 {
     static uint32_t last_update = 0;
     const uint32_t now = millis();
@@ -34,7 +36,7 @@ void AccelClass::update()
     last_update = now;
 }
 
-void AccelClass::print_debug(Print& p)
+void print_debug(Print& p)
 {
     // msa.setDataRate(MSA301_DATARATE_125_HZ);
     p.print("Data rate set to: ");
@@ -158,4 +160,5 @@ void AccelClass::print_debug(Print& p)
         p.println("8 bits");
         break;
     }
+}
 }

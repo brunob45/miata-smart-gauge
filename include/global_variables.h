@@ -1,5 +1,5 @@
-#if !defined(GLOBAL_VARIABLES_H)
-#define GLOBAL_VARIABLES_H
+#if !defined(BB_GLOBAL_VARIABLES_H)
+#define BB_GLOBAL_VARIABLES_H
 
 #include "stdint.h"
 
@@ -16,4 +16,4 @@ struct GVStruct
 
 extern GVStruct GV;
 
-#endif // GLOBAL_VARIABLES_H
+#endif // BB_GLOBAL_VARIABLES_H

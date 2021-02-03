@@ -3,7 +3,8 @@
 
 #include <Arduino.h>
 
-void update_accel(void);
+#include "accel.h"
+
 void update_values(void);
 void update_display(void);
 void update_comms(void);

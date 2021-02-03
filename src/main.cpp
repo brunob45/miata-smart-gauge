@@ -1,6 +1,5 @@
 
 #include <ILI9341_t3.h>
-#include <Adafruit_MSA301.h>
 
 #include "main.h"
 
@@ -29,7 +28,6 @@ typedef union
 #define DISPLAY_BG ILI9341_BLACK
 
 ILI9341_t3 tft(TFT_CS, TFT_DC);
-Adafruit_MSA301 msa;
 
 Coord gaugeCenter = {.cart = {.x = 320 - 52, 240 - 82}};
 int16_t gaugeRadius = 140;
@@ -38,16 +36,11 @@ uint16_t GAUGE_BG = DISPLAY_BG;
 bool alert = false;
 bool update_bg = false;
 
-float acc_x = 0;
-float acc_y = 0;
-float acc_z = 0;
-float acc_s = 0;
-
 int16_t rpm = 0;
 int16_t rpm_inc = 100;
 uint8_t current_gear = 0;
 
-uint8_t LinLum[] = {1,5,21,47,84,130,188,255};
+uint8_t LinLum[] = {1, 5, 21, 47, 84, 130, 188, 255};
 
 struct DisplayMenu
 {
@@ -81,7 +74,7 @@ void setup()
     tft.setClock(60e6);
     tft.setRotation(3);
 
-    msa.begin();
+    Accel::init();
 
     menus[current_menu].init();
 
@@ -90,135 +83,9 @@ void setup()
 
 void loop(void)
 {
-    update_accel();
+    Accel::update();
     update_values();
     update_display();
-}
-
-void print_accel_params(Adafruit_MSA301 &a, Print &p)
-{
-    // a.setDataRate(MSA301_DATARATE_125_HZ);
-    p.print("Data rate set to: ");
-    switch (a.getDataRate())
-    {
-    case MSA301_DATARATE_1_HZ:
-        p.println("1 Hz");
-        break;
-    case MSA301_DATARATE_1_95_HZ:
-        p.println("1.95 Hz");
-        break;
-    case MSA301_DATARATE_3_9_HZ:
-        p.println("3.9 Hz");
-        break;
-    case MSA301_DATARATE_7_81_HZ:
-        p.println("7.81 Hz");
-        break;
-    case MSA301_DATARATE_15_63_HZ:
-        p.println("15.63 Hz");
-        break;
-    case MSA301_DATARATE_31_25_HZ:
-        p.println("31.25 Hz");
-        break;
-    case MSA301_DATARATE_62_5_HZ:
-        p.println("62.5 Hz");
-        break;
-    case MSA301_DATARATE_125_HZ:
-        p.println("125 Hz");
-        break;
-    case MSA301_DATARATE_250_HZ:
-        p.println("250 Hz");
-        break;
-    case MSA301_DATARATE_500_HZ:
-        p.println("500 Hz");
-        break;
-    case MSA301_DATARATE_1000_HZ:
-        p.println("1000 Hz");
-        break;
-    }
-
-    //a.setPowerMode(MSA301_SUSPENDMODE);
-    p.print("Power mode set to: ");
-    switch (a.getPowerMode())
-    {
-    case MSA301_NORMALMODE:
-        p.println("Normal");
-        break;
-    case MSA301_LOWPOWERMODE:
-        p.println("Low Power");
-        break;
-    case MSA301_SUSPENDMODE:
-        p.println("Suspend");
-        break;
-    }
-
-    //a.setBandwidth(MSA301_BANDWIDTH_31_25_HZ);
-    p.print("Bandwidth set to: ");
-    switch (a.getBandwidth())
-    {
-    case MSA301_BANDWIDTH_1_95_HZ:
-        p.println("1.95 Hz");
-        break;
-    case MSA301_BANDWIDTH_3_9_HZ:
-        p.println("3.9 Hz");
-        break;
-    case MSA301_BANDWIDTH_7_81_HZ:
-        p.println("7.81 Hz");
-        break;
-    case MSA301_BANDWIDTH_15_63_HZ:
-        p.println("15.63 Hz");
-        break;
-    case MSA301_BANDWIDTH_31_25_HZ:
-        p.println("31.25 Hz");
-        break;
-    case MSA301_BANDWIDTH_62_5_HZ:
-        p.println("62.5 Hz");
-        break;
-    case MSA301_BANDWIDTH_125_HZ:
-        p.println("125 Hz");
-        break;
-    case MSA301_BANDWIDTH_250_HZ:
-        p.println("250 Hz");
-        break;
-    case MSA301_BANDWIDTH_500_HZ:
-        p.println("500 Hz");
-        break;
-    }
-
-    //a.setRange(MSA301_RANGE_2_G);
-    p.print("Range set to: ");
-    switch (a.getRange())
-    {
-    case MSA301_RANGE_2_G:
-        p.println("+-2G");
-        break;
-    case MSA301_RANGE_4_G:
-        p.println("+-4G");
-        break;
-    case MSA301_RANGE_8_G:
-        p.println("+-8G");
-        break;
-    case MSA301_RANGE_16_G:
-        p.println("+-16G");
-        break;
-    }
-
-    //a.setResolution(MSA301_RESOLUTION_14 );
-    p.print("Resolution set to: ");
-    switch (a.getResolution())
-    {
-    case MSA301_RESOLUTION_14:
-        p.println("14 bits");
-        break;
-    case MSA301_RESOLUTION_12:
-        p.println("12 bits");
-        break;
-    case MSA301_RESOLUTION_10:
-        p.println("10 bits");
-        break;
-    case MSA301_RESOLUTION_8:
-        p.println("8 bits");
-        break;
-    }
 }
 
 void update_comms(void)
@@ -231,28 +98,6 @@ void update_comms(void)
     {
         Serial.write(Serial1.read());
     }
-}
-
-void update_accel()
-{
-    static uint32_t last_update = 0;
-    const uint32_t now = millis();
-
-    if (now - last_update < 20)
-        return;
-
-    msa.read();
-
-    acc_x += (msa.x_g - acc_x) / 8;
-    acc_y += (msa.y_g - acc_y) / 8;
-    acc_z += (msa.z_g - acc_z) / 8;
-
-    acc_s = acc_x * acc_x;
-    acc_s += acc_y * acc_y;
-    acc_s += acc_z * acc_z;
-    acc_s = sqrtf(acc_s);
-
-    last_update = now;
 }
 
 void update_values()
@@ -273,7 +118,7 @@ void update_values()
         rpm_inc = 100;
     }
 
-    current_gear = rpm/1335;
+    current_gear = rpm / 1335;
 
     if (rpm > 7200 && !alert)
     {
@@ -374,7 +219,6 @@ void initMenu1()
     tft.print("MAP");
     tft.setCursor(5, 75 + 100);
     tft.print("a");
-
 }
 
 void initMenu2()
@@ -430,25 +274,24 @@ void drawNumber(int number, int scale, int offset, int x, int y)
 
     int whole = number / scale, decimal = number % scale;
     int whole_size = numSize(whole);
-    int cursor_x = (offset-whole_size) * 18 + x;
+    int cursor_x = (offset - whole_size) * 18 + x;
     tft.setCursor(cursor_x, y);
     tft.print(whole);
     cursor_x += whole_size * 18 + 6;
     tft.setCursor(cursor_x, y);
     tft.print(decimal);
     cursor_x = offset * 18 + x - 6;
-    tft.setTextColor(DISPLAY_FG1 , DISPLAY_FG1);
+    tft.setTextColor(DISPLAY_FG1, DISPLAY_FG1);
     tft.setCursor(cursor_x, y);
     tft.print('.');
 }
 
 void updateMenu1()
 {
-    const int map = 1022;
     updateGauge();
 
-    drawNumber(abs(acc_s-1)*980, 100, 1, 5, 92+100);
-    drawNumber(map, 10, 3, 5, 92+50);
+    drawNumber(abs(Accel::get().norm() - 1) * 980, 100, 1, 5, 92 + 100);
+    drawNumber(1022, 10, 3, 5, 92 + 50);
     drawNumber(12678, 1000, 2, 5, 92);
 }
 

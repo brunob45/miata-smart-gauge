@@ -62,7 +62,7 @@ void updateMenu1();
 void updateMenu2();
 
 DisplayMenu menus[] = {{initMenu1, updateMenu1}, {initMenu2, updateMenu2}};
-uint8_t current_menu = 1;
+uint8_t current_menu = 0;
 
 IntervalTimer commTimer;
 
@@ -423,19 +423,33 @@ void updateGauge()
     tft.print(rpm);
 }
 
-void updateMenu1()
+void drawNumber(int number, int scale, int offset, int x, int y)
 {
-    updateGauge();
-
     tft.setTextSize(3);
     tft.setTextColor(DISPLAY_FG1, DISPLAY_BG);
 
-    tft.setCursor(5, 92 + 100);
-    tft.print(abs(acc_s-1)*9.8);
-    tft.setCursor(5, 92 + 50);
-    tft.print("99.9");
-    tft.setCursor(5, 92);
-    tft.print("12.678");
+    int whole = number / scale, decimal = number % scale;
+    int whole_size = numSize(whole);
+    int cursor_x = (offset-whole_size) * 18 + x;
+    tft.setCursor(cursor_x, y);
+    tft.print(whole);
+    cursor_x += whole_size * 18 + 6;
+    tft.setCursor(cursor_x, y);
+    tft.print(decimal);
+    cursor_x = offset * 18 + x - 6;
+    tft.setTextColor(DISPLAY_FG1 , DISPLAY_FG1);
+    tft.setCursor(cursor_x, y);
+    tft.print('.');
+}
+
+void updateMenu1()
+{
+    const int map = 1022;
+    updateGauge();
+
+    drawNumber(abs(acc_s-1)*980, 100, 1, 5, 92+100);
+    drawNumber(map, 10, 3, 5, 92+50);
+    drawNumber(12678, 1000, 2, 5, 92);
 }
 
 void updateMenu2()

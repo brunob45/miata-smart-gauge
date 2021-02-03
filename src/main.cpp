@@ -14,7 +14,7 @@ void setup()
     Accel::init();
     Display::init();
 
-    commTimer.begin(update_comms, 1000); // Do not increase above 5000us
+    commTimer.begin(update_comms, 1000); // 64 bytes @ 115200 baud is 4.44ms, so a check every 1ms is sufficient
 }
 
 void loop(void)

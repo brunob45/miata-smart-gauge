@@ -1,21 +1,9 @@
 
-#include <ILI9341_t3.h>
-
 #include "main.h"
 
-typedef union
-{
-    struct
-    {
-        int16_t x;
-        int16_t y;
-    } cart;
-    struct pol
-    {
-        int16_t a;
-        int16_t r;
-    } pol;
-} Coord;
+#include <ILI9341_t3.h>
+
+#include "point.h"
 
 #define TFT_DC 9
 #define TFT_CS 10
@@ -29,7 +17,7 @@ typedef union
 
 ILI9341_t3 tft(TFT_CS, TFT_DC);
 
-Coord gaugeCenter = {.cart = {.x = 320 - 52, 240 - 82}};
+Point gaugeCenter(320 - 52, 240 - 82, Point::CARTESIAN);
 int16_t gaugeRadius = 140;
 
 uint16_t GAUGE_BG = DISPLAY_BG;
@@ -136,14 +124,6 @@ void update_values()
     last_update = now;
 }
 
-Coord pol2cart(int16_t a, int16_t r)
-{
-    Coord c;
-    c.cart.x = sin(radians(a)) * r;
-    c.cart.y = cos(radians(a)) * r;
-    return c;
-}
-
 uint8_t numSize(uint16_t n)
 {
     uint8_t s = 0;
@@ -187,10 +167,10 @@ void update_display()
 
 void initGauge()
 {
-    tft.fillCircle(gaugeCenter.cart.x, gaugeCenter.cart.y, gaugeRadius + 12, DISPLAY_ACCENT2);
-    tft.drawCircle(gaugeCenter.cart.x, gaugeCenter.cart.y, gaugeRadius + 11, GAUGE_BG);
-    tft.fillCircle(gaugeCenter.cart.x, gaugeCenter.cart.y, gaugeRadius - 12, GAUGE_BG);
-    tft.drawCircle(gaugeCenter.cart.x, gaugeCenter.cart.y, gaugeRadius - 12, DISPLAY_ACCENT1);
+    tft.fillCircle(gaugeCenter.x(), gaugeCenter.y(), gaugeRadius + 12, DISPLAY_ACCENT2);
+    tft.drawCircle(gaugeCenter.x(), gaugeCenter.y(), gaugeRadius + 11, GAUGE_BG);
+    tft.fillCircle(gaugeCenter.x(), gaugeCenter.y(), gaugeRadius - 12, GAUGE_BG);
+    tft.drawCircle(gaugeCenter.x(), gaugeCenter.y(), gaugeRadius - 12, DISPLAY_ACCENT1);
 
     tft.setTextSize(2);
     tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
@@ -199,8 +179,8 @@ void initGauge()
     int16_t a = -17;
     for (int i = 0; i < 9; i++)
     {
-        Coord c = pol2cart(a, gaugeRadius);
-        tft.setCursor(gaugeCenter.cart.x - c.cart.x - 4, gaugeCenter.cart.y - c.cart.y - 7);
+        Point c = gaugeCenter - Point(a, gaugeRadius, Point::POLAR);
+        tft.setCursor(c.x() - 4, c.y() - 7);
         tft.print(8 - i);
         a += 17;
     }
@@ -229,32 +209,30 @@ void initMenu2()
 
 void updateGauge()
 {
-    static Coord needle[2];
+    static Point needle[2];
 
     if (update_bg)
     {
-        tft.fillCircle(gaugeCenter.cart.x, gaugeCenter.cart.y, gaugeRadius - 14, GAUGE_BG);
+        tft.fillCircle(gaugeCenter.x(), gaugeCenter.y(), gaugeRadius - 14, GAUGE_BG);
         update_bg = false;
     }
 
-    Coord c1 = pol2cart(-(rpm * 17 / 1000) + 119, gaugeRadius - 16);
-    Coord c2 = pol2cart(-(rpm * 17 / 1000) + 119, -30);
+    Point c1(-(rpm * 17 / 1000) + 119, gaugeRadius - 16, Point::POLAR);
+    Point c2(-(rpm * 17 / 1000) + 119, -30, Point::POLAR);
 
-    tft.drawLine(needle[0].cart.x, needle[0].cart.y, needle[1].cart.x, needle[1].cart.y, GAUGE_BG);
-    tft.drawLine(needle[0].cart.x + 1, needle[0].cart.y, needle[1].cart.x + 1, needle[1].cart.y, GAUGE_BG);
-    tft.drawLine(needle[0].cart.x, needle[0].cart.y + 1, needle[1].cart.x, needle[1].cart.y + 1, GAUGE_BG);
+    tft.drawLine(needle[0].x(), needle[0].y(), needle[1].x(), needle[1].y(), GAUGE_BG);
+    tft.drawLine(needle[0].x() + 1, needle[0].y(), needle[1].x() + 1, needle[1].y(), GAUGE_BG);
+    tft.drawLine(needle[0].x(), needle[0].y() + 1, needle[1].x(), needle[1].y() + 1, GAUGE_BG);
 
-    needle[0].cart.x = gaugeCenter.cart.x - c2.cart.x;
-    needle[0].cart.y = gaugeCenter.cart.y - c2.cart.y;
-    needle[1].cart.x = gaugeCenter.cart.x - c1.cart.x;
-    needle[1].cart.y = gaugeCenter.cart.y - c1.cart.y;
+    needle[0] = gaugeCenter - c2;
+    needle[1] = gaugeCenter - c1;
 
-    tft.drawLine(needle[0].cart.x, needle[0].cart.y, needle[1].cart.x, needle[1].cart.y, DISPLAY_FG1);
-    tft.drawLine(needle[0].cart.x + 1, needle[0].cart.y, needle[1].cart.x + 1, needle[1].cart.y, DISPLAY_FG1);
-    tft.drawLine(needle[0].cart.x, needle[0].cart.y + 1, needle[1].cart.x, needle[1].cart.y + 1, DISPLAY_FG1);
+    tft.drawLine(needle[0].x(), needle[0].y(), needle[1].x(), needle[1].y(), DISPLAY_FG1);
+    tft.drawLine(needle[0].x() + 1, needle[0].y(), needle[1].x() + 1, needle[1].y(), DISPLAY_FG1);
+    tft.drawLine(needle[0].x(), needle[0].y() + 1, needle[1].x(), needle[1].y() + 1, DISPLAY_FG1);
 
-    tft.drawCircle(gaugeCenter.cart.x, gaugeCenter.cart.y, 9, DISPLAY_ACCENT2);
-    tft.drawCircle(gaugeCenter.cart.x, gaugeCenter.cart.y, 8, DISPLAY_ACCENT1);
+    tft.drawCircle(gaugeCenter.x(), gaugeCenter.y(), 9, DISPLAY_ACCENT2);
+    tft.drawCircle(gaugeCenter.x(), gaugeCenter.y(), 8, DISPLAY_ACCENT1);
 
     tft.setTextSize(4);
     tft.setTextColor(DISPLAY_FG1, GAUGE_BG);

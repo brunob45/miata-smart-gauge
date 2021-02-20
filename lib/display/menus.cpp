@@ -133,8 +133,8 @@ void updateMenu1()
     updateGauge();
 
     drawNumber(abs(GV.accel - 1) * 980, 100, 1, 5, 92 + 100);
-    drawNumber(1022, 10, 3, 5, 92 + 50);
-    drawNumber(12678, 1000, 2, 5, 92);
+    drawNumber(GV.map, 10, 3, 5, 92 + 50);
+    drawNumber(GV.pw, 1000, 2, 5, 92);
 }
 
 void updateMenu2()

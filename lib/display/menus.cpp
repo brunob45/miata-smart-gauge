@@ -121,6 +121,7 @@ void drawNumber(int number, int scale, int offset, int x, int y)
     tft.print(whole);
     cursor_x += whole_size * 18 + 6;
     tft.setCursor(cursor_x, y);
+    for (int i = 0; i < numSize(scale) - numSize(decimal) - 1; ++i) tft.print('0');
     tft.print(decimal);
     cursor_x = offset * 18 + x - 6;
     tft.setTextColor(DISPLAY_FG1, DISPLAY_FG1);

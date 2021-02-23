@@ -9,7 +9,7 @@
 GlobalVars GV;
 
 IntervalTimer commTimer;
-int emSinceUsbData;
+volatile int last_index;
 CurrentStatus cs;
 uint8_t comm_source = COMM_SRC_NONE;
 uint16_t comm_index = 0;
@@ -23,65 +23,68 @@ void setup()
     Display::init();
 
     commTimer.begin(update_comms, 1000); // 64 bytes @ 115200 baud is 4.44ms, so a check every 1ms is sufficient
+    last_index = 0;
 }
 
 void loop(void)
 {
-    static elapsedMillis em = 0;
-    static uint16_t last_index = 0;
-
     Accel::update();
     update_values();
     Display::update();
-
-    if (em > 50)
-    {
-        em = 0;
-        if (comm_source == COMM_SRC_NONE)
-        {
-            comm_index = 0;
-            last_index = 0;
-            comm_source = COMM_SRC_LOCAL;
-            Serial1.write('r');
-        }
-        else if (comm_source == COMM_SRC_LOCAL && comm_index == last_index)
-        {
-            // timeout
-            comm_source = COMM_SRC_NONE;
-        }
-    }
 }
 
 void update_comms(void)
 {
-    if (emSinceUsbData >= 500)
+    static bool usb_ongoing = false, local_ongoing = false;
+    static int update_counter = 0, last_usb_receive = 0;
+    ++update_counter;
+    ++last_usb_receive;
+
+    if (usb_ongoing)
     {
-        comm_source = COMM_SRC_NONE;
+        for (int xfer_size = Serial.available(); xfer_size > 0; xfer_size--)
+        {
+            last_usb_receive = 0;
+            Serial1.write(Serial.read());
+        }
+        for (int xfer_size = Serial1.available(); xfer_size > 0; xfer_size--)
+        {
+            last_usb_receive = 0;
+            Serial.write(Serial1.read());
+        }
+        if (last_usb_receive > 500)
+        {
+            usb_ongoing = false;
+        }
+    }
+    else if (local_ongoing)
+    {
+        for (int xfer_size = Serial1.available(); xfer_size > 0; xfer_size--)
+        {
+            ((uint8_t*)&cs)[comm_index++] = Serial1.read();
+            last_index = comm_index;
+            local_ongoing = comm_index < sizeof(CurrentStatus);
+        }
+        if (update_counter > 100)
+        {
+            // timeout
+            cs.rpm = 0;
+            local_ongoing = false;
+        }
     }
     else
     {
-        ++emSinceUsbData;
-    }
-    for (int xfer_size = Serial.available(); xfer_size > 0; xfer_size--)
-    {
-        emSinceUsbData = 0;
-        comm_source = COMM_SRC_USB;
-        Serial1.write(Serial.read());
-    }
-    for (int xfer_size = Serial1.available(); xfer_size > 0; xfer_size--)
-    {
-        if (comm_source == COMM_SRC_USB)
+        if (Serial.available())
         {
-            Serial.write(Serial1.read());
+            usb_ongoing = true;
         }
-        else if (comm_source == COMM_SRC_LOCAL)
+        else if (update_counter > 50)
         {
-            ((uint8_t*)&cs)[comm_index++] = Serial1.read();
-            if (comm_index >= sizeof(CurrentStatus)) { comm_source = COMM_SRC_NONE; }
-        }
-        else // comm_source == COMM_SRC_NONE
-        {
-            Serial1.read(); // flush buffer
+            local_ongoing = true;
+            update_counter = 0;
+            comm_index = 0;
+            last_index = 0;
+            Serial1.write('r');
         }
     }
 }
@@ -89,29 +92,18 @@ void update_comms(void)
 void update_values()
 {
     static uint32_t last_update = 0;
-    static int16_t rpm_inc = 100;
 
     const uint32_t now = millis();
 
     if (now - last_update < 100)
         return;
 
-    // GV.rpm += rpm_inc;
-    // if (GV.rpm >= 8000 && rpm_inc > 0)
-    // {
-    //     rpm_inc = -200;
-    // }
-    // else if (GV.rpm <= 200 && rpm_inc < 0)
-    // {
-    //     rpm_inc = 100;
-    // }
     GV.rpm = cs.rpm;
     GV.map = cs.map;
     GV.pw = cs.pw;
+    GV.alert = cs.status2.launch_arm || cs.status1.soft_limit;
 
     GV.gear = GV.rpm / 1335;
-
-    GV.alert = GV.rpm > 7200;
 
     GV.accel = Accel::get().norm();
 

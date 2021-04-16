@@ -6,9 +6,8 @@ struct GlobalVars
     int16_t rpm;
     bool alert;
     uint8_t gear;
-    float accel;
-    int16_t map;
-    int16_t pw;
+    float accel[3];
+    uint16_t lumi;
 };
 
 extern GlobalVars GV;

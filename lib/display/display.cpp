@@ -32,19 +32,12 @@ ILI9341_t3 tft(TFT_CS, TFT_DC);
 
 using namespace Internal;
 
-uint8_t lumi(uint8_t percent)
-{
-    unsigned int l = (percent * 255u) / 100u;
-    return (l * l) / 256u;
-}
-
 void init(void)
 {
-    pinMode(6, OUTPUT);
-    analogWrite(6, lumi(50));
     tft.begin();
     tft.setClock(60e6);
     tft.setRotation(3);
+    tft.fillScreen(ILI9341_WHITE);
     menus[current_menu].init();
 }
 

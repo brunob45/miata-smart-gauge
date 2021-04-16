@@ -33,9 +33,9 @@ void update(void)
 
     msa.read();
 
-    accel.x += (msa.x_g - accel.x) / 8;
-    accel.y += (msa.y_g - accel.y) / 8;
-    accel.z += (msa.z_g - accel.z) / 8;
+    accel.x += (msa.x_g - accel.x) / 16;
+    accel.y += (msa.y_g - accel.y) / 16;
+    accel.z += (msa.z_g - accel.z) / 16;
 
     last_update = now;
 }

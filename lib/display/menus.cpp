@@ -56,11 +56,11 @@ void initMenu1()
 
     tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
     tft.setCursor(5, 75);
-    tft.print("PW");
+    tft.print("x");
     tft.setCursor(5, 75 + 50);
-    tft.print("MAP");
+    tft.print("y");
     tft.setCursor(5, 75 + 100);
-    tft.print("a");
+    tft.print("lum");
 }
 
 void initMenu2()
@@ -120,21 +120,30 @@ void drawNumber(int number, int scale, int offset, int x, int y)
     tft.setCursor(cursor_x, y);
     tft.print(whole);
     cursor_x += whole_size * 18 + 6;
-    tft.setCursor(cursor_x, y);
-    tft.print(decimal);
-    cursor_x = offset * 18 + x - 6;
-    tft.setTextColor(DISPLAY_FG1, DISPLAY_FG1);
-    tft.setCursor(cursor_x, y);
-    tft.print('.');
+
+    if (scale > 1)
+    {
+        tft.setCursor(cursor_x, y);
+        int scale_size = numSize(scale) - 1;
+        for (int i = numSize(decimal); i < scale_size; i++)
+        {
+            tft.print('0');
+        }
+        tft.print(decimal);
+        cursor_x = offset * 18 + x - 6;
+        tft.setTextColor(DISPLAY_FG1, DISPLAY_FG1);
+        tft.setCursor(cursor_x, y);
+        tft.print('.');
+    }
 }
 
 void updateMenu1()
 {
     updateGauge();
 
-    drawNumber(abs(GV.accel - 1) * 980, 100, 1, 5, 92 + 100);
-    drawNumber(GV.map, 10, 3, 5, 92 + 50);
-    drawNumber(GV.pw, 1000, 2, 5, 92);
+    drawNumber(abs(GV.accel[2]) * 100, 100, 1, 5, 92);
+    drawNumber(abs(GV.accel[0]) * 100, 100, 1, 5, 92 + 50);
+    drawNumber(GV.lumi, 1, 4, 5, 92 + 100);
 }
 
 void updateMenu2()

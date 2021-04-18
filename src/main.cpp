@@ -40,7 +40,7 @@ void loop(void)
     RPM::update();
 
     GV.rpm = RPM::get_value();
-    GV.alert = GV.rpm > 7200;
+    GV.alert = false; // GV.rpm > 7200;
 
     Accel::AccelValue a = Accel::get();
     GV.accel[0] = a.x;

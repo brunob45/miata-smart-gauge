@@ -119,10 +119,10 @@ void drawNumber(int number, int scale, int offset, int x, int y)
     int cursor_x = (offset - whole_size) * 18 + x;
     tft.setCursor(cursor_x, y);
     tft.print(whole);
-    cursor_x += whole_size * 18 + 6;
 
     if (scale > 1)
     {
+        cursor_x += whole_size * 18 + 8;
         tft.setCursor(cursor_x, y);
         int scale_size = numSize(scale) - 1;
         for (int i = numSize(decimal); i < scale_size; i++)

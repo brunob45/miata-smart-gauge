@@ -14,7 +14,7 @@ const uint8_t FILTER_SIZE = 4;
 FreqMeasureMulti fmm;
 elapsedMillis time_since_last_edge;
 
-FilterClass<uint32_t, 8> filter;
+FilterClass<uint32_t, 12> filter;
 
 } // namespace
 
@@ -40,13 +40,14 @@ void update()
     else if (time_since_last_edge > 500) // 500ms = 2Hz = 120rpm
     {
         time_since_last_edge = 0;
-        filter.put(0);
+        filter.put(-1);
     }
 }
 
 uint16_t get_value()
 {
-    return constrain(fmm.countToFrequency(filter.get()), 0, 9999);
+    uint16_t count = fmm.countToFrequency(filter.get());
+    return constrain(count, 0, 333) * 30;
 }
 
 } // namespace RPM

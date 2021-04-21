@@ -1,3 +1,4 @@
-.pio
-.vscode
+.pio/
+.vscode/
 debug.log
+lib/git_sha/

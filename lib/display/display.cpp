@@ -1,5 +1,6 @@
 #include "display.h"
 
+#include "git_sha.h"
 #include "point.h"
 
 #define TFT_DC 9
@@ -54,8 +55,13 @@ void update(void)
     tft.setCursor(5, 240 - 10);
     tft.setTextSize(1);
     tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
+
+    tft.print(GIT_SHA);
+    tft.print(", ");
+
     tft.print(millis() - now);
     tft.print("ms, ");
+
     uint16_t seconds = now / 1000;
     if (seconds >= 60)
     {

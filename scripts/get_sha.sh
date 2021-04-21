@@ -2,7 +2,7 @@
 
 version=$(git rev-parse --short HEAD)
 
-if ! $(git diff-index --quiet HEAD --); then
+if ! $(git diff --quiet); then
     #workspace is dirty
     version=${version}*;
 fi

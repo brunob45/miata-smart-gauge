@@ -15,7 +15,7 @@ uint32_t period_max;
 uint32_t period_min;
 uint32_t last_period;
 
-FilterClass<uint32_t, 12> filter;
+FilterClass filter(0.05f);
 
 } // namespace
 

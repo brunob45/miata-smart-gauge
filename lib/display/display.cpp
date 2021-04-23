@@ -40,6 +40,12 @@ void init(void)
     tft.setRotation(3);
     tft.fillScreen(ILI9341_WHITE);
     menus[current_menu].init();
+
+    tft.setCursor(45, 5);
+    tft.setTextSize(1);
+    tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
+
+    tft.print(GIT_SHA);
 }
 
 void update(void)
@@ -56,22 +62,34 @@ void update(void)
     tft.setTextSize(1);
     tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
 
-    tft.print(GIT_SHA);
-    tft.print(", ");
-
     tft.print(millis() - now);
     tft.print("ms, ");
 
-    uint16_t seconds = now / 1000;
+    uint32_t seconds = now / 1000;
+    if (seconds >= 3600)
+    {
+        uint16_t hours = seconds / 3600;
+        seconds = seconds % 3600;
+        tft.print(hours);
+        tft.print("h");
+        if (seconds < 600)
+        {
+            tft.print(' ');
+        }
+    }
     if (seconds >= 60)
     {
         uint16_t minutes = seconds / 60;
         seconds = seconds % 60;
         tft.print(minutes);
         tft.print("m");
+        if (seconds < 10)
+        {
+            tft.print(' ');
+        }
     }
     tft.print(seconds);
-    tft.print("s   ");
+    tft.print("s");
 
     last_update = now;
 }

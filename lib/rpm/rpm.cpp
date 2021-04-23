@@ -15,7 +15,7 @@ uint32_t period_max;
 uint32_t period_min;
 uint32_t last_period;
 
-FilterClass filter(0.05f);
+FilterClass filter(0.1f);
 
 } // namespace
 
@@ -51,7 +51,7 @@ void update()
     if (time_since_last_edge > 250) // 250ms = 4Hz = 120rpm
     {
         time_since_last_edge = 0;
-        filter.put(period_max);
+        filter.put(period_max * 30);
     }
 }
 

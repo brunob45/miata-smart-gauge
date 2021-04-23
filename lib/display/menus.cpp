@@ -141,8 +141,8 @@ void updateMenu1()
 {
     updateGauge();
 
-    drawNumber(abs(GV.accel[2]) * 100, 100, 1, 5, 92);
-    drawNumber(abs(GV.accel[0] - 0.35f) * 100, 100, 1, 5, 92 + 50);
+    drawNumber(abs(GV.accel[2] + 0.35f) * 100, 100, 1, 5, 92);
+    drawNumber(abs(GV.accel[0]) * 100, 100, 1, 5, 92 + 50);
     drawNumber(GV.lumi, 1, 4, 5, 92 + 100);
 }
 

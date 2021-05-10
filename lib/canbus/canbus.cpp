@@ -6,20 +6,30 @@
 
 namespace CanBus
 {
-FlexCAN can0;
+const uint32_t CANBUS_TIMEOUT = 2000;
+const uint32_t CANBUS_SPEED = 500000;
+
+FlexCAN CANbus(500000);
 elapsedMillis em;
 
 void init()
 {
-    can0.begin(500e3);
+    // Enable CAN transceiver
+    pinMode(23, OUTPUT);
+    digitalWrite(23, LOW);
+
+    // Start CAN driver
+    CANbus.begin();
+
+    Serial.begin(115200);
 }
 
 void update()
 {
-    for (int i = can0.available(); i > 0; i--)
+    for (int i = CANbus.available(); i > 0; i--)
     {
         CAN_message_t msg;
-        can0.read(msg);
+        CANbus.read(msg);
 
         // Convert each field from big endian to local format
         switch (msg.id)
@@ -58,6 +68,6 @@ void update()
             break;
         }
     }
-    GV.connected = (em < 5000); // Timeout after 5s
+    GV.connected = (em < CANBUS_TIMEOUT); // Timeout after 5s
 }
 } // namespace CanBus

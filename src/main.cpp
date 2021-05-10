@@ -17,21 +17,20 @@ constexpr uint8_t lumi(uint8_t percent)
     return (l * l) / 256u;
 }
 
-uint8_t lumi_low = lumi(50);
-uint8_t lumi_high = lumi(100);
+elapsedMillis em;
 
 void setup()
 {
+    em = 0;
+
     pinMode(6, OUTPUT);
-    analogWrite(6, 0);
+    digitalWrite(6, LOW);
     pinMode(A6, INPUT);
 
     Accel::init();
     // Speedo::init();
     CanBus::init();
     Display::init();
-
-    analogWrite(6, lumi_low);
 
     // taskTimer.begin([] {}, 100); // 64 bytes @ 115200 baud is 4.44ms, so a check every 1ms is sufficient
 }

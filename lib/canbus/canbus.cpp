@@ -7,6 +7,7 @@
 namespace CanBus
 {
 FlexCAN can0;
+elapsedMillis em;
 
 void init()
 {
@@ -28,12 +29,14 @@ void update()
             GV.ms.rpm = (msg.buf[2] << 8) | (msg.buf[3] << 0);
             GV.ms.clt = (msg.buf[4] << 8) | (msg.buf[5] << 0);
             GV.ms.tps = (msg.buf[6] << 8) | (msg.buf[7] << 0);
+            em = 0;
             break;
         case 1513:
             GV.ms.pw1 = (msg.buf[0] << 8) | (msg.buf[1] << 0);
             GV.ms.pw2 = (msg.buf[2] << 8) | (msg.buf[3] << 0);
             GV.ms.mat = (msg.buf[4] << 8) | (msg.buf[5] << 0);
             GV.ms.adv = (msg.buf[6] << 8) | (msg.buf[7] << 0);
+            em = 0;
             break;
         case 1514:
             GV.ms.afrtgt = msg.buf[0];
@@ -41,17 +44,20 @@ void update()
             GV.ms.egocor = (msg.buf[2] << 8) | (msg.buf[3] << 0);
             GV.ms.egt = (msg.buf[4] << 8) | (msg.buf[5] << 0);
             GV.ms.pwseq = (msg.buf[6] << 8) | (msg.buf[7] << 0);
+            em = 0;
             break;
         case 1515:
             GV.ms.batt = (msg.buf[0] << 8) | (msg.buf[1] << 0);
             GV.ms.sensors1 = (msg.buf[2] << 8) | (msg.buf[3] << 0);
             GV.ms.sensors2 = (msg.buf[4] << 8) | (msg.buf[5] << 0);
             GV.ms.knk_rtd = (msg.buf[6] << 8) | (msg.buf[7] << 0);
+            em = 0;
             break;
         default:
             // unknown id
             break;
         }
     }
+    GV.connected = (em < 5000); // Timeout after 5s
 }
 } // namespace CanBus

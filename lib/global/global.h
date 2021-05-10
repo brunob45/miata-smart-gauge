@@ -37,6 +37,7 @@ struct GlobalVars
     bool alert;
     uint8_t gear;
     uint16_t lumi;
+    bool connected;
 };
 
 extern GlobalVars GV;

@@ -2,9 +2,10 @@
 #include <Arduino.h>
 
 #include "accel.h"
+#include "canbus.h"
 #include "display.h"
 #include "global.h"
-#include "rpm.h"
+#include "speedo.h"
 
 GlobalVars GV;
 
@@ -26,7 +27,8 @@ void setup()
     pinMode(A6, INPUT);
 
     Accel::init();
-    RPM::init();
+    // Speedo::init();
+    CanBus::init();
     Display::init();
 
     analogWrite(6, lumi_low);
@@ -37,19 +39,14 @@ void setup()
 void loop(void)
 {
     Accel::update();
-    RPM::update();
+    // Speedo::update();
+    CanBus::update();
 
-    GV.rpm = RPM::get_value();
-    GV.alert = false; // GV.rpm > 7200;
-
-    Accel::AccelValue a = Accel::get();
-    GV.accel[0] = a.x;
-    GV.accel[1] = a.y;
-    GV.accel[2] = a.z;
+    // GV.ms.rpm = Speedo::get_value();
+    GV.alert = GV.ms.rpm > 7200;
 
     GV.lumi = analogRead(A6);
-
-    analogWrite(6, 255 - (GV.lumi / 4u));
+    analogWrite(6, (GV.lumi > 512) ? 30 : 255);
 
     Display::update();
 }

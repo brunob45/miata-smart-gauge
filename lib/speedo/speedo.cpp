@@ -1,11 +1,11 @@
-#include "rpm.h"
+#include "speedo.h"
 
 #include <FreqMeasureMulti.h>
 #include <elapsedMillis.h>
 
 #include "filter.h"
 
-namespace RPM
+namespace Speedo
 {
 namespace
 {
@@ -67,4 +67,4 @@ uint16_t get_value()
     return freq;
 }
 
-} // namespace RPM
+} // namespace Speedo

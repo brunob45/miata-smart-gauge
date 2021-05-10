@@ -1,5 +1,5 @@
-#ifndef BB_FILTER_H
-#define BB_FILTER_H
+#ifndef DASH_FILTER_H
+#define DASH_FILTER_H
 
 #include <stdint.h>
 
@@ -25,4 +25,4 @@ public:
     }
 };
 
-#endif // BB_FILTER_H
+#endif // DASH_FILTER_H

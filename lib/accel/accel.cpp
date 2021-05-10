@@ -3,6 +3,7 @@
 #include <Adafruit_MSA301.h>
 
 #include "filter.h"
+#include "global.h"
 
 namespace Accel
 {
@@ -37,7 +38,11 @@ void update(void)
 
     fx.put(msa.x_g);
     fy.put(msa.y_g);
-    fz.put(msa.z_g);
+    fz.put(msa.z_g + 0.35f);
+
+    GV.accel.x = fx.get();
+    GV.accel.y = fy.get();
+    GV.accel.z = fz.get();
 
     last_update = now;
 }

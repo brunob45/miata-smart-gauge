@@ -60,7 +60,7 @@ void initMenu1()
     tft.setCursor(5, 75 + 50);
     tft.print("y");
     tft.setCursor(5, 75 + 100);
-    tft.print("lum");
+    tft.print("map");
 }
 
 void initMenu2()
@@ -81,8 +81,8 @@ void updateGauge()
         wasAlert = GV.alert;
     }
 
-    Point c1(-(GV.rpm * 17 / 1000) + 119, gaugeRadius - 16, Point::POLAR);
-    Point c2(-(GV.rpm * 17 / 1000) + 119, -30, Point::POLAR);
+    Point c1(-(GV.ms.rpm * 17 / 1000) + 119, gaugeRadius - 16, Point::POLAR);
+    Point c2(-(GV.ms.rpm * 17 / 1000) + 119, -30, Point::POLAR);
 
     tft.drawLine(needle[0].x(), needle[0].y(), needle[1].x(), needle[1].y(), GAUGE_BG);
     tft.drawLine(needle[0].x() + 1, needle[0].y(), needle[1].x() + 1, needle[1].y(), GAUGE_BG);
@@ -102,11 +102,11 @@ void updateGauge()
     tft.setTextColor(DISPLAY_FG1, GAUGE_BG);
     tft.setCursor(220, 205);
 
-    for (int i = 0; i < 4 - numSize(GV.rpm); i++)
+    for (int i = 0; i < 4 - numSize(GV.ms.rpm); i++)
     {
         tft.print(' ');
     }
-    tft.print(GV.rpm);
+    tft.print(GV.ms.rpm);
 }
 
 void drawNumber(int number, int scale, int offset, int x, int y)
@@ -141,9 +141,9 @@ void updateMenu1()
 {
     updateGauge();
 
-    drawNumber(abs(GV.accel[2] + 0.35f) * 100, 100, 1, 5, 92);
-    drawNumber(abs(GV.accel[0]) * 100, 100, 1, 5, 92 + 50);
-    drawNumber(GV.lumi, 1, 4, 5, 92 + 100);
+    drawNumber(abs(GV.accel.z) * 100, 100, 1, 5, 92);
+    drawNumber(abs(GV.accel.x) * 100, 100, 1, 5, 92 + 50);
+    drawNumber(GV.ms.map, 10, 3, 5, 92 + 100);
 }
 
 void updateMenu2()

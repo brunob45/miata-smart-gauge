@@ -20,8 +20,6 @@ void init()
 
     // Start CAN driver
     CANbus.begin();
-
-    Serial.begin(115200);
 }
 
 void update()

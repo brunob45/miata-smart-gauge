@@ -7,6 +7,8 @@ if ! $(git diff --quiet); then
     version=${version}*;
 fi
 
+mkdir -p lib/git_sha/
+
 printf "
 #ifndef GIT_SHA
 #define GIT_SHA \"${version}\"

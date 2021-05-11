@@ -125,28 +125,41 @@ void updateGauge()
 
 void drawNumber(int number, int scale, int offset, int x, int y)
 {
-    tft.setTextSize(3);
-    tft.setTextColor(DISPLAY_FG1, DISPLAY_BG);
+    const int fontsize = 3;
+    const int charsize = fontsize * 6; // a char is 6 pixel wide
 
-    int whole = number / scale, decimal = number % scale;
-    int whole_size = numSize(whole);
-    int cursor_x = (offset - whole_size) * 18 + x;
-    tft.setCursor(cursor_x, y);
+    tft.setTextSize(fontsize);
+    tft.setTextColor(DISPLAY_FG1, DISPLAY_BG);
+    tft.setCursor(x, y);
+
+    const int whole = number / scale;
+    const int decimal = number % scale;
+
+    // Print left padding with "space" character
+    for(int i = numSize(whole); i < offset; i++)
+    {
+        tft.print(' ');
+    }
+
+    // print whole part of number
     tft.print(whole);
 
     if (scale > 1)
     {
-        cursor_x += whole_size * 18 + 8;
-        tft.setCursor(cursor_x, y);
-        int scale_size = numSize(scale) - 1;
+        // print decimal part of number
+        const int scale_size = numSize(scale) - 1;
+        const int cursor_x = (offset * charsize) + x;
+
+        tft.setCursor(cursor_x + (fontsize * 3), y);
         for (int i = numSize(decimal); i < scale_size; i++)
         {
             tft.print('0');
         }
         tft.print(decimal);
-        cursor_x = offset * 18 + x - 6;
+
+        // print dot
         tft.setTextColor(DISPLAY_FG1, DISPLAY_FG1);
-        tft.setCursor(cursor_x, y);
+        tft.setCursor(cursor_x - (fontsize * 2), y);
         tft.print('.');
     }
 }

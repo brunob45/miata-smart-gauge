@@ -17,14 +17,19 @@ extern ILI9341_t3 tft;
 
 uint8_t numSize(uint16_t n)
 {
-    uint8_t s = 0;
-    do
+    if (n < 100) // small binary-search-like optimisation
     {
-        n /= 10;
-        s++;
-    } while (n > 0);
-
-    return s;
+        if(n < 10) // n between 0 & 9
+            return 1;
+        else // n between 10 & 99
+            return 2;
+    }
+    else if (n < 1000) // n between 100 & 999
+        return 3;
+    else if (n < 10000) // n between 1000 & 9999
+        return 4;
+    else // n between 10000 & 65535, maximum value for 16-bit integer
+        return 5;
 }
 
 void initGauge()

@@ -48,7 +48,7 @@ void initGauge()
     }
 }
 
-void initMenu1()
+void initMenu0()
 {
     tft.fillScreen(DISPLAY_BG);
 
@@ -63,10 +63,21 @@ void initMenu1()
     tft.print("map");
 }
 
-void initMenu2()
+void initMenu1()
 {
     tft.fillScreen(DISPLAY_BG);
     initGauge();
+}
+
+void initMenu2()
+{
+    tft.fillScreen(DISPLAY_BG);
+
+    initGauge();
+
+    tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
+    tft.setCursor(5, 75 + 100);
+    tft.print("map");
 }
 
 void updateGauge()
@@ -123,6 +134,33 @@ void updateGauge()
     wasConnected = GV.connected;
 }
 
+void updateAccelGauge(uint16_t center_x, uint16_t center_y, uint16_t radius)
+{
+    static int16_t lastx, lasty;
+    static bool init = false;
+
+    if (init)
+    {
+        // remove last point
+        tft.fillCircle(center_x + lastx, center_y + lasty, 5, DISPLAY_BG);
+    }
+
+    // re-draw gauge background
+    tft.drawCircle(center_x, center_y, radius, DISPLAY_FG1);
+    tft.drawCircle(center_x, center_y, radius / 2, DISPLAY_FG1);
+    tft.drawFastHLine(center_x - radius, center_y, radius * 2, DISPLAY_FG1);
+    tft.drawFastVLine(center_x, center_y - radius, radius * 2, DISPLAY_FG1);
+
+    // update accel marker position
+    lastx = (GV.accel.z * radius) + center_x;
+    lasty = (GV.accel.y * radius) + center_y;
+
+    // draw accel marker
+    tft.fillCircle(lastx, lasty, 5, DISPLAY_FG2);
+    tft.drawLine(center_x, center_y, lastx, lasty, DISPLAY_FG2);
+    init = true;
+}
+
 void drawNumber(int number, int scale, int offset, int x, int y)
 {
     tft.setTextSize(3);
@@ -151,7 +189,7 @@ void drawNumber(int number, int scale, int offset, int x, int y)
     }
 }
 
-void updateMenu1()
+void updateMenu0()
 {
     updateGauge();
 
@@ -160,7 +198,7 @@ void updateMenu1()
     drawNumber(GV.ms.map, 10, 3, 5, 92 + 100);
 }
 
-void updateMenu2()
+void updateMenu1()
 {
     updateGauge();
 
@@ -177,6 +215,13 @@ void updateMenu2()
         tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
         tft.print('?');
     }
+}
+
+void updateMenu2()
+{
+    updateGauge();
+    updateAccelGauge(80, 80, 32);
+    drawNumber(GV.ms.map, 10, 3, 5, 92 + 100);
 }
 
 } // namespace Internal

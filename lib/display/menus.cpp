@@ -15,21 +15,24 @@ uint16_t GAUGE_BG = DISPLAY_BG;
 
 extern ILI9341_t3 tft;
 
-uint8_t numSize(uint16_t n)
+uint8_t numSize(int n)
 {
+    uint8_t s = (n < 0);
+    n = abs(n);
     if (n < 100) // small binary-search-like optimisation
     {
-        if(n < 10) // n between 0 & 9
-            return 1;
+        if (n < 10) // n between 0 & 9
+            s += 1;
         else // n between 10 & 99
-            return 2;
+            s += 2;
     }
     else if (n < 1000) // n between 100 & 999
-        return 3;
+        s += 3;
     else if (n < 10000) // n between 1000 & 9999
-        return 4;
+        s += 4;
     else // n between 10000 & 65535, maximum value for 16-bit integer
-        return 5;
+        s += 5;
+    return s;
 }
 
 void initGauge()
@@ -51,38 +54,6 @@ void initGauge()
         tft.print(8 - i);
         a += 17;
     }
-}
-
-void initMenu0()
-{
-    tft.fillScreen(DISPLAY_BG);
-
-    initGauge();
-
-    tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
-    tft.setCursor(5, 75);
-    tft.print("x");
-    tft.setCursor(5, 75 + 50);
-    tft.print("y");
-    tft.setCursor(5, 75 + 100);
-    tft.print("map");
-}
-
-void initMenu1()
-{
-    tft.fillScreen(DISPLAY_BG);
-    initGauge();
-}
-
-void initMenu2()
-{
-    tft.fillScreen(DISPLAY_BG);
-
-    initGauge();
-
-    tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
-    tft.setCursor(5, 75 + 100);
-    tft.print("map");
 }
 
 void updateGauge()
@@ -147,7 +118,7 @@ void updateAccelGauge(uint16_t center_x, uint16_t center_y, uint16_t radius)
     if (init)
     {
         // remove last point
-        tft.fillCircle(center_x + lastx, center_y + lasty, 5, DISPLAY_BG);
+        tft.fillCircle(lastx, lasty, 4, DISPLAY_BG);
     }
 
     // re-draw gauge background
@@ -157,12 +128,12 @@ void updateAccelGauge(uint16_t center_x, uint16_t center_y, uint16_t radius)
     tft.drawFastVLine(center_x, center_y - radius, radius * 2, DISPLAY_FG1);
 
     // update accel marker position
-    lastx = (GV.accel.z * radius) + center_x;
-    lasty = (GV.accel.y * radius) + center_y;
+    lastx = (-GV.accel.x * radius) + center_x;
+    lasty = (GV.accel.z * radius) + center_y;
 
     // draw accel marker
-    tft.fillCircle(lastx, lasty, 5, DISPLAY_FG2);
-    tft.drawLine(center_x, center_y, lastx, lasty, DISPLAY_FG2);
+    tft.fillCircle(lastx, lasty, 4, DISPLAY_ACCENT1);
+    // tft.drawLine(center_x, center_y, lastx, lasty, DISPLAY_FG2);
     init = true;
 }
 
@@ -175,11 +146,11 @@ void drawNumber(int number, int scale, int offset, int x, int y)
     tft.setTextColor(DISPLAY_FG1, DISPLAY_BG);
     tft.setCursor(x, y);
 
-    const int whole = number / scale;
-    const int decimal = number % scale;
+    const int whole = number / scale; // count negative sign
+    const int decimal = abs(number) % scale;
 
     // Print left padding with "space" character
-    for(int i = numSize(whole); i < offset; i++)
+    for (int i = numSize(whole); i < offset; i++)
     {
         tft.print(' ');
     }
@@ -207,15 +178,34 @@ void drawNumber(int number, int scale, int offset, int x, int y)
     }
 }
 
+void initMenu0()
+{
+    tft.fillScreen(DISPLAY_BG);
+
+    initGauge();
+
+    tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
+    tft.setCursor(5, 75 + 0);
+    tft.print("x");
+    tft.setCursor(5, 75 + 50);
+    tft.print("y");
+    tft.setCursor(5, 75 + 100);
+    tft.print("map");
+}
 void updateMenu0()
 {
     updateGauge();
 
-    drawNumber(abs(GV.accel.z) * 100, 100, 1, 5, 92);
+    drawNumber(abs(GV.accel.z) * 100, 100, 1, 5, 92 + 0);
     drawNumber(abs(GV.accel.x) * 100, 100, 1, 5, 92 + 50);
     drawNumber(GV.ms.map, 10, 3, 5, 92 + 100);
 }
 
+void initMenu1()
+{
+    tft.fillScreen(DISPLAY_BG);
+    initGauge();
+}
 void updateMenu1()
 {
     updateGauge();
@@ -235,11 +225,24 @@ void updateMenu1()
     }
 }
 
+void initMenu2()
+{
+    tft.fillScreen(DISPLAY_BG);
+
+    initGauge();
+
+    tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
+    tft.setCursor(5, 60 + 0);
+    tft.print("PULSE WIDTH");
+    tft.setCursor(5, 60 + 50);
+    tft.print("ADVANCE");
+}
 void updateMenu2()
 {
     updateGauge();
-    updateAccelGauge(80, 80, 32);
-    drawNumber(GV.ms.map, 10, 3, 5, 92 + 100);
+    updateAccelGauge(60, 240 - 50, 32);
+    drawNumber(GV.ms.pw1, 1000, 2, 5, 77 + 0);
+    drawNumber(GV.ms.adv, 10, 3, 5, 77 + 50);
 }
 
 } // namespace Internal

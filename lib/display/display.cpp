@@ -27,7 +27,7 @@ void updateMenu0();
 void updateMenu1();
 void updateMenu2();
 
-DisplayMenu menus[] = {{initMenu1, updateMenu1}, {initMenu2, updateMenu2}, {initMenu3, updateMenu3}};
+DisplayMenu menus[] = {{initMenu0, updateMenu0}, {initMenu1, updateMenu1}, {initMenu2, updateMenu2}};
 uint8_t current_menu = 2;
 
 ILI9341_t3 tft(TFT_CS, TFT_DC);

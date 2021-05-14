@@ -233,7 +233,7 @@ void initMenu2()
 
     tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
     tft.setCursor(5, 60 + 0);
-    tft.print("PULSE WIDTH");
+    tft.print("EGO COR");
     tft.setCursor(5, 60 + 50);
     tft.print("ADVANCE");
 }
@@ -241,7 +241,7 @@ void updateMenu2()
 {
     updateGauge();
     updateAccelGauge(60, 240 - 50, 32);
-    drawNumber(GV.ms.pw1, 1000, 2, 5, 77 + 0);
+    drawNumber(GV.ms.egocor, 10, 3, 5, 77 + 0);
     drawNumber(GV.ms.adv, 10, 3, 5, 77 + 50);
 }
 

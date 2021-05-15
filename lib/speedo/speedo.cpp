@@ -22,6 +22,7 @@ void init()
 {
     fmm.begin(21);
     time_since_last_edge = 0;
+    lost_sync = true;
 
     // clear fmm buffer
     while (fmm.available())

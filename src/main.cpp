@@ -20,6 +20,8 @@ CurrentStatus cs;
 uint8_t comm_source = COMM_SRC_NONE;
 uint16_t comm_index = 0;
 
+static void update_comms(void);
+
 void setup()
 {
     pinMode(6, OUTPUT);
@@ -30,7 +32,7 @@ void setup()
     Serial1.begin(115200);
 
     Accel::init();
-    // Speedo::init();
+    Speedo::init();
     CanBus::init();
     Display::init();
 
@@ -41,10 +43,9 @@ void setup()
 void loop(void)
 {
     Accel::update();
-    // Speedo::update();
+    Speedo::update();
     CanBus::update();
 
-    // GV.ms.rpm = Speedo::get_value();
     GV.alert = GV.ms.rpm > 7200;
 
     GV.lumi = analogRead(A6);
@@ -53,7 +54,7 @@ void loop(void)
     Display::update();
 }
 
-void update_comms(void)
+static void update_comms(void)
 {
     static bool usb_ongoing = false, local_ongoing = false;
     static int update_counter = 0, last_usb_receive = 0;

@@ -4,6 +4,7 @@
 #include <elapsedMillis.h>
 
 #include "filter.h"
+#include "global.h"
 
 namespace Speedo
 {
@@ -11,9 +12,7 @@ namespace
 {
 FreqMeasureMulti fmm;
 elapsedMillis time_since_last_edge;
-uint32_t period_max;
-uint32_t period_min;
-uint32_t last_period;
+bool lost_sync = false;
 
 FilterClass filter(0.1f);
 
@@ -23,9 +22,6 @@ void init()
 {
     fmm.begin(21);
     time_since_last_edge = 0;
-    period_max = fmm.countToFrequency(1);   // 30 rpm = 1 Hz
-    period_min = fmm.countToFrequency(333); // 10000 rpm = 333.3 Hz
-    last_period = 0;
 
     // clear fmm buffer
     while (fmm.available())
@@ -39,32 +35,29 @@ void update()
     for (int i = fmm.available(); i > 0; i--)
     {
         time_since_last_edge = 0;
+        const uint32_t period = fmm.read();
 
-        // filter noise - reject pulses that are too fast
-        last_period += fmm.read();
-        if (last_period >= period_min)
+        if (lost_sync)
         {
-            filter.put(last_period);
-            last_period = 0;
+            lost_sync = false;
+        }
+        else
+        {
+            filter.put(period);
         }
     }
-    if (time_since_last_edge > 250) // 250ms = 4Hz = 120rpm
+
+    if (time_since_last_edge > 500) // 500 ms = 2 Hz
     {
         time_since_last_edge = 0;
-        filter.put(period_max * 30);
+        filter.put(fmm.countToFrequency(2)); // 2 Hz
+        lost_sync = true;
     }
-}
 
-uint16_t get_value()
-{
-    const uint32_t period = filter.get();
-    float freq = 0;
-    if (period < period_max)
-    {
-        freq = fmm.countToFrequency(period) * 30.0f; // 1 Hz = 30 rpm
-        freq = constrain(freq, 0, 9999);
-    }
-    return freq;
+    const float frequency = fmm.countToFrequency(filter.get());
+    GV.vss = lost_sync
+                 ? 0
+                 : constrain(frequency, 0, 65535);
 }
 
 } // namespace Speedo

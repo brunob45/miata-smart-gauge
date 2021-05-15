@@ -1,10 +1,16 @@
 
-#include "main.h"
-#include "current_status.h"
+#include <Arduino.h>
 
 #define COMM_SRC_NONE 0
 #define COMM_SRC_LOCAL 1
 #define COMM_SRC_USB 2
+
+#include "accel.h"
+#include "canbus.h"
+#include "current_status.h"
+#include "display.h"
+#include "global.h"
+#include "speedo.h"
 
 GlobalVars GV;
 
@@ -16,20 +22,34 @@ uint16_t comm_index = 0;
 
 void setup()
 {
+    pinMode(6, OUTPUT);
+    digitalWrite(6, LOW);
+    pinMode(A6, INPUT);
+
     Serial.begin(115200);
     Serial1.begin(115200);
 
     Accel::init();
+    // Speedo::init();
+    CanBus::init();
     Display::init();
 
-    commTimer.begin(update_comms, 1000); // 64 bytes @ 115200 baud is 4.44ms, so a check every 1ms is sufficient
-    last_index = 0;
+    // commTimer.begin(update_comms, 1000); // 64 bytes @ 115200 baud is 4.44ms, so a check every 1ms is sufficient
+    // last_index = 0;
 }
 
 void loop(void)
 {
     Accel::update();
-    update_values();
+    // Speedo::update();
+    CanBus::update();
+
+    // GV.ms.rpm = Speedo::get_value();
+    GV.alert = GV.ms.rpm > 7200;
+
+    GV.lumi = analogRead(A6);
+    analogWrite(6, (GV.lumi > 512) ? 30 : 255);
+
     Display::update();
 }
 
@@ -87,25 +107,4 @@ void update_comms(void)
             Serial1.write('r');
         }
     }
-}
-
-void update_values()
-{
-    static uint32_t last_update = 0;
-
-    const uint32_t now = millis();
-
-    if (now - last_update < 100)
-        return;
-
-    GV.rpm = cs.rpm;
-    GV.map = cs.map;
-    GV.pw = cs.pw;
-    GV.alert = cs.status2.launch_arm || cs.status1.soft_limit;
-
-    GV.gear = GV.rpm / 1335;
-
-    GV.accel = Accel::get().norm();
-
-    last_update = now;
 }

@@ -1,5 +1,6 @@
 #include "display.h"
 
+#include "git_sha.h"
 #include "point.h"
 
 #define TFT_DC 9
@@ -18,34 +19,35 @@ struct DisplayMenu
 uint8_t numSize(uint16_t n);
 void drawNumber(int number, int scale, int offset, int x, int y);
 
+void initMenu0();
 void initMenu1();
 void initMenu2();
 
+void updateMenu0();
 void updateMenu1();
 void updateMenu2();
 
-DisplayMenu menus[] = {{initMenu1, updateMenu1}, {initMenu2, updateMenu2}};
-uint8_t current_menu = 0;
+DisplayMenu menus[] = {{initMenu0, updateMenu0}, {initMenu1, updateMenu1}, {initMenu2, updateMenu2}};
+uint8_t current_menu = 2;
 
 ILI9341_t3 tft(TFT_CS, TFT_DC);
 } // namespace Internal
 
 using namespace Internal;
 
-uint8_t lumi(uint8_t percent)
-{
-    unsigned int l = (percent * 255u) / 100u;
-    return (l * l) / 256u;
-}
-
 void init(void)
 {
-    pinMode(6, OUTPUT);
-    analogWrite(6, lumi(50));
     tft.begin();
     tft.setClock(60e6);
     tft.setRotation(3);
+    tft.fillScreen(ILI9341_WHITE);
     menus[current_menu].init();
+
+    tft.setCursor(45, 5);
+    tft.setTextSize(1);
+    tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
+
+    tft.print(GIT_SHA);
 }
 
 void update(void)
@@ -61,18 +63,35 @@ void update(void)
     tft.setCursor(5, 240 - 10);
     tft.setTextSize(1);
     tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
+
     tft.print(millis() - now);
     tft.print("ms, ");
-    uint16_t seconds = now / 1000;
+
+    uint32_t seconds = now / 1000;
+    if (seconds >= 3600)
+    {
+        uint16_t hours = seconds / 3600;
+        seconds = seconds % 3600;
+        tft.print(hours);
+        tft.print("h");
+        if (seconds < 600)
+        {
+            tft.print(' ');
+        }
+    }
     if (seconds >= 60)
     {
         uint16_t minutes = seconds / 60;
         seconds = seconds % 60;
         tft.print(minutes);
         tft.print("m");
+        if (seconds < 10)
+        {
+            tft.print(' ');
+        }
     }
     tft.print(seconds);
-    tft.print("s   ");
+    tft.print("s");
 
     last_update = now;
 }

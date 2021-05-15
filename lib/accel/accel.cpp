@@ -2,12 +2,15 @@
 
 #include <Adafruit_MSA301.h>
 
+#include "filter.h"
+#include "global.h"
+
 namespace Accel
 {
 namespace
 {
 Adafruit_MSA301 msa;
-AccelValue accel;
+FilterClass fx(0.05f), fy(0.05f), fz(0.05f);
 } // namespace
 
 float AccelValue::norm()
@@ -33,9 +36,13 @@ void update(void)
 
     msa.read();
 
-    accel.x += (msa.x_g - accel.x) / 8;
-    accel.y += (msa.y_g - accel.y) / 8;
-    accel.z += (msa.z_g - accel.z) / 8;
+    fx.put(msa.x_g);
+    fy.put(msa.y_g);
+    fz.put(msa.z_g + 0.35f);
+
+    GV.accel.x = fx.get();
+    GV.accel.y = fy.get();
+    GV.accel.z = fz.get();
 
     last_update = now;
 }
@@ -168,7 +175,7 @@ void print_debug(Print& p)
 
 AccelValue get()
 {
-    return accel;
+    return AccelValue{fx.get(), fy.get(), fz.get()};
 }
 
 } // namespace Accel

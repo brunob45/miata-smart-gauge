@@ -29,6 +29,7 @@ enum class MSG_TYPE : uint8_t
 
 struct msg_header_t
 {
+    uint32_t id;
     uint8_t table;
     uint8_t to_id;
     uint8_t from_id;
@@ -37,6 +38,8 @@ struct msg_header_t
 
     void decode(uint32_t can_id)
     {
+        id = can_id;
+
         table = (can_id >> 3) & 0x0f;
         table |= ((can_id << 2) & 0x10); // add last bit to table index
 
@@ -57,7 +60,63 @@ struct msg_header_t
         can_id |= ((uint32_t)msg_type & 0x07) << 15;
         can_id |= ((uint32_t)offset & 0x3f) << 18;
 
+        id = can_id;
+
         return can_id;
+    }
+
+    void print(Print& s)
+    {
+        s.print('{');
+        s.print(id, HEX);
+        s.print(',');
+        s.print(table);
+        s.print(',');
+        s.print(to_id);
+        s.print(',');
+        s.print(from_id);
+        s.print(',');
+
+        switch (msg_type)
+        {
+        case MSG_TYPE::MSG_CMD:
+            s.print("MSG_CMD");
+            break;
+        case MSG_TYPE::MSG_REQ:
+            s.print("MSG_REQ");
+            break;
+        case MSG_TYPE::MSG_RSP:
+            s.print("MSG_RSP");
+            break;
+        case MSG_TYPE::MSG_XSUB:
+            s.print("MSG_XSUB");
+            break;
+        case MSG_TYPE::MSG_BURN:
+            s.print("MSG_BURN");
+            break;
+        case MSG_TYPE::OUTMSG_REQ:
+            s.print("OUTMSG_REQ");
+            break;
+        case MSG_TYPE::OUTMSG_RSP:
+            s.print("OUTMSG_RSP");
+            break;
+        case MSG_TYPE::MSG_XTND:
+            s.print("MSG_XTND");
+            break;
+        default:
+            s.print("UNDEF");
+            break;
+        }
+
+        s.print(',');
+        s.print(offset);
+        s.print('}');
+    }
+
+    void println(Print& s)
+    {
+        print(s);
+        s.println();
     }
 };
 
@@ -122,22 +181,30 @@ void rx_command(const CAN_message_t& msg)
 {
     msg_header_t header;
     header.decode(msg.id);
+
     // if (msg_type == MSG_TYPE::MSG_XTND)
     // {
     //     msg_type = (MSG_TYPE)msg.buf[0];
     // }
+
+    // header.println(Serial);
+    // for (int i = 0; i < msg.len; i++)
+    // {
+    //     Serial.print(msg.buf[i], HEX);
+    //     Serial.print(',');
+    // }
+    // Serial.println();
+
     switch (header.msg_type)
     {
     case MSG_TYPE::MSG_CMD:
-        Serial.println("MSG_CMD");
         break;
     case MSG_TYPE::MSG_REQ:
-        Serial.print("MSG_REQ");
-        Serial.println(msg.buf[2] & 0x0f); // print length of request
         if (header.to_id == MY_CAN_ID)
         {
-            msg_header_t header =
+            msg_header_t rsp_header =
                 {
+                    .id = 0,
                     .table = msg.buf[0],
                     .to_id = header.from_id,
                     .from_id = MY_CAN_ID,
@@ -146,36 +213,28 @@ void rx_command(const CAN_message_t& msg)
                 };
             CAN_message_t rsp =
                 {
-                    .id = header.pack(),
+                    .id = rsp_header.pack(),
                     .ext = 1,
                     .len = (uint8_t)(msg.buf[2] & 0x0f),
                     .timeout = 0,
-                    .buf = {0, 0, 0, 0, 0, 0, 0, 0},
+                    .buf = {1, 2, 3, 4, 5, 6, 7, 8},
                 };
-
             CANbus.write(rsp);
         }
         break;
     case MSG_TYPE::MSG_RSP:
-        Serial.println("MSG_RSP");
         break;
     case MSG_TYPE::MSG_XSUB:
-        Serial.println("MSG_XSUB");
         break;
     case MSG_TYPE::MSG_BURN:
-        Serial.println("MSG_BURN");
         break;
     case MSG_TYPE::OUTMSG_REQ:
-        Serial.println("OUTMSG_REQ");
         break;
     case MSG_TYPE::OUTMSG_RSP:
-        Serial.println("OUTMSG_RSP");
         break;
     case MSG_TYPE::MSG_XTND:
-        Serial.println("MSG_XTND");
         break;
     default:
-        Serial.println("UNDEF");
         break;
     }
 }

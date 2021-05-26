@@ -124,8 +124,7 @@ const uint32_t CANBUS_TIMEOUT = 2000;
 const uint32_t CANBUS_SPEED = 500000;
 const uint8_t MY_CAN_ID = 5;
 
-FlexCAN CANbus(500000);
-elapsedMillis em;
+static FlexCAN CANbus(500000);
 
 void init()
 {
@@ -139,6 +138,8 @@ void init()
 
 void rx_broadcast(const CAN_message_t& msg)
 {
+    static elapsedMillis em;
+
     // Convert each field from big endian to local format
     switch (msg.id)
     {
@@ -175,6 +176,7 @@ void rx_broadcast(const CAN_message_t& msg)
         // unknown id
         break;
     }
+    GV.connected = (em < CANBUS_TIMEOUT); // Timeout after 5s
 }
 
 void rx_command(const CAN_message_t& msg)
@@ -241,12 +243,23 @@ void rx_command(const CAN_message_t& msg)
 
 void update()
 {
+    static bool wasConnected = false;
+
     for (int i = CANbus.available(); i > 0; i--)
     {
         CAN_message_t msg;
         CANbus.read(msg);
         msg.ext ? rx_command(msg) : rx_broadcast(msg);
     }
-    GV.connected = (em < CANBUS_TIMEOUT); // Timeout after 5s
+
+    if (wasConnected && !GV.connected)
+    {
+        // Connection lost, reset ms values to 0
+        for (int i = sizeof(GV.ms); i > 0; i--)
+        {
+            ((uint8_t*)&GV.ms)[i] = 0;
+        }
+    }
+    wasConnected = GV.connected;
 }
 } // namespace CanBus

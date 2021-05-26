@@ -60,54 +60,40 @@ void updateGauge()
 {
     static Point needle[2];
     static bool wasAlert = false;
-    static bool wasConnected = false;
 
-    if (GV.connected)
+    if (GV.alert != wasAlert)
     {
-        if (GV.alert != wasAlert)
-        {
-            GAUGE_BG = GV.alert ? DISPLAY_ALERT : DISPLAY_BG;
-            tft.fillCircle(gaugeCenter.x(), gaugeCenter.y(), gaugeRadius - 14, GAUGE_BG);
-            wasAlert = GV.alert;
-        }
-
-        Point c1(-(GV.ms.rpm * 17 / 1000) + 119, gaugeRadius - 16, Point::POLAR);
-        Point c2(-(GV.ms.rpm * 17 / 1000) + 119, -30, Point::POLAR);
-
-        tft.drawLine(needle[0].x(), needle[0].y(), needle[1].x(), needle[1].y(), GAUGE_BG);
-        tft.drawLine(needle[0].x() + 1, needle[0].y(), needle[1].x() + 1, needle[1].y(), GAUGE_BG);
-        tft.drawLine(needle[0].x(), needle[0].y() + 1, needle[1].x(), needle[1].y() + 1, GAUGE_BG);
-
-        needle[0] = gaugeCenter - c2;
-        needle[1] = gaugeCenter - c1;
-
-        tft.drawLine(needle[0].x(), needle[0].y(), needle[1].x(), needle[1].y(), DISPLAY_FG1);
-        tft.drawLine(needle[0].x() + 1, needle[0].y(), needle[1].x() + 1, needle[1].y(), DISPLAY_FG1);
-        tft.drawLine(needle[0].x(), needle[0].y() + 1, needle[1].x(), needle[1].y() + 1, DISPLAY_FG1);
-
-        tft.drawCircle(gaugeCenter.x(), gaugeCenter.y(), 9, DISPLAY_ACCENT2);
-        tft.drawCircle(gaugeCenter.x(), gaugeCenter.y(), 8, DISPLAY_ACCENT1);
-
-        tft.setTextSize(4);
-        tft.setTextColor(DISPLAY_FG1, GAUGE_BG);
-        tft.setCursor(220, 205);
-
-        for (int i = 0; i < 4 - numSize(GV.ms.rpm); i++)
-        {
-            tft.print(' ');
-        }
-        tft.print(GV.ms.rpm);
+        GAUGE_BG = GV.alert ? DISPLAY_ALERT : DISPLAY_BG;
+        tft.fillCircle(gaugeCenter.x(), gaugeCenter.y(), gaugeRadius - 14, GAUGE_BG);
+        wasAlert = GV.alert;
     }
-    else
+
+    Point c1(-(GV.ms.rpm * 17 / 1000) + 119, gaugeRadius - 16, Point::POLAR);
+    Point c2(-(GV.ms.rpm * 17 / 1000) + 119, -30, Point::POLAR);
+
+    tft.drawLine(needle[0].x(), needle[0].y(), needle[1].x(), needle[1].y(), GAUGE_BG);
+    tft.drawLine(needle[0].x() + 1, needle[0].y(), needle[1].x() + 1, needle[1].y(), GAUGE_BG);
+    tft.drawLine(needle[0].x(), needle[0].y() + 1, needle[1].x(), needle[1].y() + 1, GAUGE_BG);
+
+    needle[0] = gaugeCenter - c2;
+    needle[1] = gaugeCenter - c1;
+
+    tft.drawLine(needle[0].x(), needle[0].y(), needle[1].x(), needle[1].y(), DISPLAY_FG1);
+    tft.drawLine(needle[0].x() + 1, needle[0].y(), needle[1].x() + 1, needle[1].y(), DISPLAY_FG1);
+    tft.drawLine(needle[0].x(), needle[0].y() + 1, needle[1].x(), needle[1].y() + 1, DISPLAY_FG1);
+
+    tft.drawCircle(gaugeCenter.x(), gaugeCenter.y(), 9, DISPLAY_ACCENT2);
+    tft.drawCircle(gaugeCenter.x(), gaugeCenter.y(), 8, DISPLAY_ACCENT1);
+
+    tft.setTextSize(4);
+    tft.setTextColor(DISPLAY_FG1, GAUGE_BG);
+    tft.setCursor(220, 205);
+
+    for (int i = 0; i < 4 - numSize(GV.ms.rpm); i++)
     {
-        if (wasConnected)
-        {
-            GAUGE_BG = DISPLAY_BG;
-            tft.fillCircle(gaugeCenter.x(), gaugeCenter.y(), gaugeRadius - 14, GAUGE_BG);
-            wasAlert = false;
-        }
+        tft.print(' ');
     }
-    wasConnected = GV.connected;
+    tft.print(GV.ms.rpm);
 }
 
 void updateAccelGauge(uint16_t center_x, uint16_t center_y, uint16_t radius)
@@ -235,14 +221,14 @@ void initMenu2()
     tft.setCursor(5, 60 + 0);
     tft.print("EGO COR");
     tft.setCursor(5, 60 + 50);
-    tft.print("SPEED");
+    tft.print("BATT V");
 }
 void updateMenu2()
 {
     updateGauge();
     updateAccelGauge(60, 240 - 50, 32);
     drawNumber(GV.ms.egocor, 10, 3, 5, 77 + 0);
-    drawNumber(GV.vss, 1, 5, 5, 77 + 50);
+    drawNumber(GV.ms.batt, 10, 3, 5, 77 + 50);
 }
 
 } // namespace Internal

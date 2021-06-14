@@ -217,7 +217,16 @@ void rx_command(const CAN_message_t& msg)
                     .ext = 1,
                     .len = (uint8_t)(msg.buf[2] & 0x0f),
                     .timeout = 0,
-                    .buf = {1, 2, 3, 4, 5, 6, 7, 8},
+                    .buf = {
+                        uint8_t(GV.vss >> 8),
+                        uint8_t(GV.vss >> 0),
+                        uint8_t(int16_t(GV.accel.x * 100) >> 8),
+                        uint8_t(int16_t(GV.accel.x * 100) >> 0),
+                        uint8_t(int16_t(GV.accel.y * 100) >> 8),
+                        uint8_t(int16_t(GV.accel.y * 100) >> 0),
+                        uint8_t(int16_t(GV.accel.z * 100) >> 8),
+                        uint8_t(int16_t(GV.accel.z * 100) >> 0),
+                    },
                 };
             CANbus.write(rsp);
         }

@@ -53,6 +53,8 @@ void init(void)
 void update(void)
 {
     static uint32_t last_update = 0;
+    static size_t line_max = 0;
+
     const uint32_t now = millis();
 
     if (now - last_update < 100)
@@ -64,34 +66,41 @@ void update(void)
     tft.setTextSize(1);
     tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
 
-    tft.print(millis() - now);
-    tft.print("ms, ");
+    size_t line_len = tft.print(millis() - now);
+    line_len += tft.print("ms, ");
 
     uint32_t seconds = now / 1000;
     if (seconds >= 3600)
     {
         uint16_t hours = seconds / 3600;
         seconds = seconds % 3600;
-        tft.print(hours);
-        tft.print("h");
+        line_len += tft.print(hours);
+        line_len += tft.print("h");
         if (seconds < 600)
         {
-            tft.print(' ');
+            line_len += tft.print(' ');
         }
     }
     if (seconds >= 60)
     {
         uint16_t minutes = seconds / 60;
         seconds = seconds % 60;
-        tft.print(minutes);
-        tft.print("m");
+        line_len += tft.print(minutes);
+        line_len += tft.print("m");
         if (seconds < 10)
         {
-            tft.print(' ');
+            line_len += tft.print(' ');
         }
     }
-    tft.print(seconds);
-    tft.print("s");
+    line_len += tft.print(seconds);
+    line_len += tft.print("s");
+
+    // clear line
+    line_max = max(line_max, line_len);
+    for (size_t i = line_len; i < line_max; i++)
+    {
+        tft.print(' ');
+    }
 
     last_update = now;
 }

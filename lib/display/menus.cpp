@@ -221,14 +221,14 @@ void initMenu2()
     tft.setCursor(5, 60 + 0);
     tft.print("EGO COR");
     tft.setCursor(5, 60 + 50);
-    tft.print("BATT V");
+    tft.print("MAP");
 }
 void updateMenu2()
 {
     updateGauge();
     updateAccelGauge(60, 240 - 50, 32);
     drawNumber(GV.ms.egocor, 10, 3, 5, 77 + 0);
-    drawNumber(GV.ms.batt, 10, 3, 5, 77 + 50);
+    drawNumber(GV.ms.map, 10, 3, 5, 77 + 50);
 }
 
 } // namespace Internal

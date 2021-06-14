@@ -46,23 +46,21 @@ struct msg_header_t
         to_id = (can_id >> 7) & 0x0f;
         from_id = (can_id >> 11) & 0x0f;
         msg_type = (MSG_TYPE)((can_id >> 15) & 0x07);
-        offset = (can_id >> 18) & 0x3f;
+        offset = (can_id >> 18) & 0x3ff;
     }
 
     uint32_t pack()
     {
-        uint32_t can_id = 0;
+        id = 0;
 
-        can_id |= ((uint32_t)table & 0x10) >> 2;
-        can_id |= ((uint32_t)table & 0x0f) << 3;
-        can_id |= ((uint32_t)to_id & 0x0f) << 7;
-        can_id |= ((uint32_t)from_id & 0x0f) << 11;
-        can_id |= ((uint32_t)msg_type & 0x07) << 15;
-        can_id |= ((uint32_t)offset & 0x3f) << 18;
+        id |= ((uint32_t)table & 0x10) >> 2;
+        id |= ((uint32_t)table & 0x0f) << 3;
+        id |= ((uint32_t)to_id & 0x0f) << 7;
+        id |= ((uint32_t)from_id & 0x0f) << 11;
+        id |= ((uint32_t)msg_type & 0x07) << 15;
+        id |= ((uint32_t)offset & 0x3ff) << 18;
 
-        id = can_id;
-
-        return can_id;
+        return id;
     }
 
     void print(Print& s)

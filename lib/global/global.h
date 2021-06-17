@@ -34,6 +34,13 @@ struct GlobalVars
         float z;
     } accel;
 
+    struct
+    {
+        uint16_t frpm[16];
+        uint16_t fmap[16];
+        uint8_t values[16 * 16];
+    } ftrim;
+
     bool alert;
     uint8_t gear;
     uint16_t lumi;

@@ -118,6 +118,16 @@ struct msg_header_t
     }
 };
 
+struct
+{
+    bool active;
+    uint8_t from_table;
+    uint16_t from_offset;
+    uint8_t to_table;
+    uint16_t to_offset;
+    uint16_t length;
+} pending_request;
+
 const uint32_t CANBUS_TIMEOUT = 2000;
 const uint32_t CANBUS_SPEED = 500000;
 const uint8_t MY_CAN_ID = 5;
@@ -177,6 +187,37 @@ void rx_broadcast(const CAN_message_t& msg)
     GV.connected = (em < CANBUS_TIMEOUT); // Timeout after 5s
 }
 
+void send_request()
+{
+    uint8_t len = min(pending_request.length, 8);
+    msg_header_t header{
+        .id = 0,
+        .table = pending_request.from_table,
+        .to_id = 0,
+        .from_id = MY_CAN_ID,
+        .msg_type = MSG_TYPE::MSG_REQ,
+        .offset = pending_request.from_offset,
+    };
+    CAN_message_t msg{
+        .id = header.pack(),
+        .ext = 1,
+        .len = 3,
+        .timeout = 0,
+        .buf = {
+            pending_request.to_table,
+            uint8_t(pending_request.to_offset >> 3),
+            uint8_t(((pending_request.to_offset << 5) & 0xE0) | len),
+        },
+    };
+
+    CANbus.write(msg);
+
+    pending_request.from_offset += len;
+    pending_request.to_offset += len;
+    pending_request.length -= len;
+    pending_request.active &= (pending_request.length > 0);
+}
+
 void rx_command(const CAN_message_t& msg)
 {
     msg_header_t header;
@@ -232,6 +273,10 @@ void rx_command(const CAN_message_t& msg)
         }
         break;
     case MSG_TYPE::MSG_RSP:
+        if (pending_request.active)
+        {
+            send_request();
+        }
         break;
     case MSG_TYPE::MSG_XSUB:
         break;

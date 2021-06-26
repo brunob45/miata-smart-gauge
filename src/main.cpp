@@ -40,6 +40,18 @@ void setup()
     // last_index = 0;
 }
 
+void checkFault(uint8_t index, bool set, bool reset)
+{
+    if (set)
+    {
+        GV.fault_code &= ~(1 << index);
+    }
+    else if (reset)
+    {
+        GV.fault_code |= (1 << index);
+    }
+}
+
 void loop(void)
 {
     Accel::update();
@@ -50,6 +62,15 @@ void loop(void)
 
     GV.lumi = analogRead(A6);
     analogWrite(6, (GV.lumi > 512) ? 30 : 255);
+
+    // High coolant temperature
+    checkFault(0, GV.ms.clt > 100, GV.ms.clt <= 97);
+
+    // Low oil pressure
+    checkFault(1, GV.ms.sensors2 > 150, GV.ms.sensors2 < 140);
+
+    // Engine off
+    checkFault(2, GV.ms.rpm<50, GV.ms.rpm> 200);
 
     Display::update();
 }

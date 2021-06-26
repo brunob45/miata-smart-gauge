@@ -12,7 +12,7 @@ namespace
 Adafruit_MSA301 msa;
 FilterClass fx(0.05f), fy(0.05f), fz(0.05f);
 
-const float ANGLE = 28.3f;
+const float ANGLE = 24.0f * DEG_TO_RAD;
 const float SINUS = sinf(ANGLE);
 const float COSINUS = cosf(ANGLE);
 } // namespace
@@ -42,11 +42,11 @@ void update(void)
 
     fx.put(msa.x_g);
 
-    // y2 = sinβ*x1 + cosβ*y1
-    fy.put(SINUS * msa.z_g + COSINUS * msa.y_g);
-
     // x2 = cosβ*x1 − sinβ*y1
-    fz.put(COSINUS * msa.z_g - SINUS * msa.y_g);
+    fy.put(COSINUS * msa.z_g - SINUS * msa.y_g);
+
+    // y2 = sinβ*x1 + cosβ*y1
+    fz.put(SINUS * msa.z_g + COSINUS * msa.y_g);
 
     GV.accel.x = fx.get();
     GV.accel.y = fy.get();

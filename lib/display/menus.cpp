@@ -115,7 +115,7 @@ void updateAccelGauge(uint16_t center_x, uint16_t center_y, uint16_t radius)
 
     // update accel marker position
     lastx = (-GV.accel.x * radius) + center_x;
-    lasty = (GV.accel.z * radius) + center_y;
+    lasty = (GV.accel.y * radius) + center_y;
 
     // draw accel marker
     tft.fillCircle(lastx, lasty, 4, DISPLAY_ACCENT1);

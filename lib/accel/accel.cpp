@@ -11,6 +11,10 @@ namespace
 {
 Adafruit_MSA301 msa;
 FilterClass fx(0.05f), fy(0.05f), fz(0.05f);
+
+const float ANGLE = 28.3f;
+const float SINUS = sinf(ANGLE);
+const float COSINUS = cosf(ANGLE);
 } // namespace
 
 float AccelValue::norm()
@@ -37,8 +41,12 @@ void update(void)
     msa.read();
 
     fx.put(msa.x_g);
-    fy.put(msa.y_g);
-    fz.put(msa.z_g + 0.35f);
+
+    // y2 = sinβ*x1 + cosβ*y1
+    fy.put(SINUS * msa.z_g + COSINUS * msa.y_g);
+
+    // x2 = cosβ*x1 − sinβ*y1
+    fz.put(COSINUS * msa.z_g - SINUS * msa.y_g);
 
     GV.accel.x = fx.get();
     GV.accel.y = fy.get();

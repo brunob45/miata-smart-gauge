@@ -118,7 +118,7 @@ struct msg_header_t
     }
 };
 
-struct
+struct CAN_Request
 {
     bool active;
     uint8_t from_table;
@@ -187,16 +187,16 @@ void rx_broadcast(const CAN_message_t& msg)
     GV.connected = (em < CANBUS_TIMEOUT); // Timeout after 5s
 }
 
-void send_request()
+uint8_t send_request(uint8_t to_id, CAN_Request rqst)
 {
-    uint8_t len = min(pending_request.length, 8);
+    uint8_t len = min(rqst.length, 8);
     msg_header_t header{
         .id = 0,
-        .table = pending_request.from_table,
-        .to_id = 0,
+        .table = rqst.from_table,
+        .to_id = to_id,
         .from_id = MY_CAN_ID,
         .msg_type = MSG_TYPE::MSG_REQ,
-        .offset = pending_request.from_offset,
+        .offset = rqst.from_offset,
     };
     CAN_message_t msg{
         .id = header.pack(),
@@ -204,24 +204,25 @@ void send_request()
         .len = 3,
         .timeout = 0,
         .buf = {
-            pending_request.to_table,
-            uint8_t(pending_request.to_offset >> 3),
-            uint8_t(((pending_request.to_offset << 5) & 0xE0) | len),
+            rqst.to_table,
+            uint8_t(rqst.to_offset >> 3),
+            uint8_t(((rqst.to_offset << 5) & 0xE0) | len),
         },
     };
 
     CANbus.write(msg);
 
-    pending_request.from_offset += len;
-    pending_request.to_offset += len;
-    pending_request.length -= len;
-    pending_request.active &= (pending_request.length > 0);
+    return len;
 }
 
 void rx_command(const CAN_message_t& msg)
 {
     msg_header_t header;
     header.decode(msg.id);
+    if (header.to_id != MY_CAN_ID)
+    {
+        return;
+    }
 
     // if (msg_type == MSG_TYPE::MSG_XTND)
     // {
@@ -238,46 +239,53 @@ void rx_command(const CAN_message_t& msg)
 
     switch (header.msg_type)
     {
-    case MSG_TYPE::MSG_CMD:
-        break;
     case MSG_TYPE::MSG_REQ:
-        if (header.to_id == MY_CAN_ID)
-        {
-            msg_header_t rsp_header =
-                {
-                    .id = 0,
-                    .table = msg.buf[0],
-                    .to_id = header.from_id,
-                    .from_id = MY_CAN_ID,
-                    .msg_type = MSG_TYPE::MSG_RSP,
-                    .offset = (uint16_t)((msg.buf[2] >> 5) | ((uint16_t)msg.buf[1] << 3)),
-                };
-            CAN_message_t rsp =
-                {
-                    .id = rsp_header.pack(),
-                    .ext = 1,
-                    .len = (uint8_t)(msg.buf[2] & 0x0f),
-                    .timeout = 0,
-                    .buf = {
-                        uint8_t(GV.vss >> 8),
-                        uint8_t(GV.vss >> 0),
-                        uint8_t(int16_t(GV.accel.x * 100) >> 8),
-                        uint8_t(int16_t(GV.accel.x * 100) >> 0),
-                        uint8_t(int16_t(GV.accel.y * 100) >> 8),
-                        uint8_t(int16_t(GV.accel.y * 100) >> 0),
-                        uint8_t(int16_t(GV.accel.z * 100) >> 8),
-                        uint8_t(int16_t(GV.accel.z * 100) >> 0),
-                    },
-                };
-            CANbus.write(rsp);
-        }
-        break;
+    {
+        msg_header_t rsp_header =
+            {
+                .id = 0,
+                .table = msg.buf[0],
+                .to_id = header.from_id,
+                .from_id = MY_CAN_ID,
+                .msg_type = MSG_TYPE::MSG_RSP,
+                .offset = (uint16_t)((msg.buf[2] >> 5) | ((uint16_t)msg.buf[1] << 3)),
+            };
+        CAN_message_t rsp =
+            {
+                .id = rsp_header.pack(),
+                .ext = 1,
+                .len = (uint8_t)(msg.buf[2] & 0x0f),
+                .timeout = 0,
+                .buf = {
+                    uint8_t(GV.vss >> 8),
+                    uint8_t(GV.vss >> 0),
+                    uint8_t(int16_t(GV.accel.x * 100) >> 8),
+                    uint8_t(int16_t(GV.accel.x * 100) >> 0),
+                    uint8_t(int16_t(GV.accel.y * 100) >> 8),
+                    uint8_t(int16_t(GV.accel.y * 100) >> 0),
+                    uint8_t(int16_t(GV.accel.z * 100) >> 8),
+                    uint8_t(int16_t(GV.accel.z * 100) >> 0),
+                },
+            };
+        CANbus.write(rsp);
+    }
+    break;
     case MSG_TYPE::MSG_RSP:
+    {
         if (pending_request.active)
         {
-            send_request();
+            uint8_t len = send_request(0, pending_request);
+
+            pending_request.from_offset += len;
+            pending_request.to_offset += len;
+            pending_request.length -= len;
+            pending_request.active &= (pending_request.length > 0);
         }
-        break;
+    }
+    case MSG_TYPE::MSG_CMD:
+    {
+    }
+    break;
     case MSG_TYPE::MSG_XSUB:
         break;
     case MSG_TYPE::MSG_BURN:

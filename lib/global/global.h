@@ -46,7 +46,7 @@ struct GlobalVars
     uint16_t lumi;
     bool connected;
     uint16_t vss;
-    uint16_t fault_code = 0xffff;
+    uint16_t fault_code = 0x7fff;
 };
 
 extern GlobalVars GV;

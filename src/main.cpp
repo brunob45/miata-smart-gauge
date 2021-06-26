@@ -54,6 +54,9 @@ void checkFault(uint8_t index, bool set, bool reset)
 
 void loop(void)
 {
+    static uint16_t last_fault = 0;
+    static uint32_t last_fault_change = 0;
+
     Accel::update();
     Speedo::update();
     CanBus::update();
@@ -63,14 +66,23 @@ void loop(void)
     GV.lumi = analogRead(A6);
     analogWrite(6, (GV.lumi > 512) ? 30 : 255);
 
-    // High coolant temperature
-    checkFault(0, GV.ms.clt > 100, GV.ms.clt <= 97);
+    if (millis() - last_fault_change > 500)
+    {
+        // High coolant temperature
+        checkFault(0, GV.ms.clt > 2120, GV.ms.clt <= 2000); // 100C & 93C
 
-    // Low oil pressure
-    checkFault(1, GV.ms.sensors2 > 150, GV.ms.sensors2 < 140);
+        // Low oil pressure
+        checkFault(1, GV.ms.sensors2 > 150, GV.ms.sensors2 < 140);
 
-    // Engine off
-    checkFault(2, GV.ms.rpm<50, GV.ms.rpm> 200);
+        // Engine off
+        checkFault(2, GV.ms.rpm<50, GV.ms.rpm> 200);
+
+        if (last_fault != GV.fault_code)
+        {
+            last_fault_change = millis();
+            last_fault = GV.fault_code;
+        }
+    }
 
     Display::update();
 }

@@ -256,17 +256,30 @@ void rx_command(const CAN_message_t& msg)
                 .ext = 1,
                 .len = (uint8_t)(msg.buf[2] & 0x0f),
                 .timeout = 0,
-                .buf = {
-                    uint8_t(GV.fault_code >> 8),
-                    uint8_t(GV.fault_code >> 0),
-                    uint8_t(int16_t(GV.accel.x * 100) >> 8),
-                    uint8_t(int16_t(GV.accel.x * 100) >> 0),
-                    uint8_t(int16_t(GV.accel.y * 100) >> 8),
-                    uint8_t(int16_t(GV.accel.y * 100) >> 0),
-                    uint8_t(int16_t(GV.accel.z * 100) >> 8),
-                    uint8_t(int16_t(GV.accel.z * 100) >> 0),
-                },
+                .buf = {0},
             };
+
+        if (header.table == 7)
+        {
+            if (header.offset == 2)
+            {
+                rsp.buf[0] = uint8_t(GV.fault_code >> 8);
+                rsp.buf[1] = uint8_t(GV.fault_code >> 0);
+                rsp.buf[2] = uint8_t(int16_t(GV.accel.x * 100) >> 8);
+                rsp.buf[3] = uint8_t(int16_t(GV.accel.x * 100) >> 0);
+                rsp.buf[4] = uint8_t(int16_t(GV.accel.y * 100) >> 8);
+                rsp.buf[5] = uint8_t(int16_t(GV.accel.y * 100) >> 0);
+                rsp.buf[6] = uint8_t(int16_t(GV.accel.z * 100) >> 8);
+                rsp.buf[7] = uint8_t(int16_t(GV.accel.z * 100) >> 0);
+            }
+            else if (header.offset == 10)
+            {
+                rsp.buf[0] = uint8_t(GV.vss >> 8);
+                rsp.buf[1] = uint8_t(GV.vss >> 0);
+            }
+        }
+        // else send 0
+
         CANbus.write(rsp);
     }
     break;

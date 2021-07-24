@@ -40,15 +40,19 @@ void setup()
     // last_index = 0;
 }
 
-void checkFault(uint8_t index, bool set, bool reset)
+void checkFault(uint16_t* code, uint8_t index, bool set, bool reset)
 {
-    if (set)
+    if (code)
     {
-        GV.fault_code &= ~(1 << index);
-    }
-    else if (reset)
-    {
-        GV.fault_code |= (1 << index);
+        if (set)
+        {
+            // inverted logic : 0 = fault active, 1 = fault inactive
+            *code &= ~(1 << index);
+        }
+        else if (reset)
+        {
+            *code |= (1 << index);
+        }
     }
 }
 
@@ -69,13 +73,13 @@ void loop(void)
     if (millis() - last_fault_change > 500)
     {
         // High coolant temperature
-        checkFault(0, GV.ms.clt > 2120, GV.ms.clt <= 2000); // 100C & 93C
+        checkFault(&GV.fault_code, 0, GV.ms.clt > 2120, GV.ms.clt <= 2000); // 100C & 93C
 
         // Low oil pressure
-        checkFault(1, GV.ms.sensors2 > 150, GV.ms.sensors2 < 140);
+        checkFault(&GV.fault_code, 1, GV.ms.sensors2 > 150, GV.ms.sensors2 < 140);
 
         // Engine off
-        checkFault(2, GV.ms.rpm<50, GV.ms.rpm> 200);
+        checkFault(&GV.fault_code, 2, GV.ms.rpm<50, GV.ms.rpm> 200);
 
         if (last_fault != GV.fault_code)
         {

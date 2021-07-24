@@ -55,7 +55,7 @@ void update()
         lost_sync = true;
     }
 
-    const float frequency = fmm.countToFrequency(filter.get());
+    const float frequency = fmm.countToFrequency(filter.get()) * 10;
     GV.vss = lost_sync
                  ? 0
                  : constrain(frequency, 0, 65535);

@@ -1,3 +1,8 @@
+import platform
+
 Import('env')
 
-env.Execute('sh scripts/get_sha.sh')
+if platform.system() == 'Windows':
+    env.Execute('wsl sh scripts/get_sha.sh')
+else: # Linux
+    env.Execute('sh scripts/get_sha.sh')

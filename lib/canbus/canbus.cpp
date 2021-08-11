@@ -1,6 +1,6 @@
 #include "canbus.h"
 
-#include <FlexCAN.h>
+#include <FlexCAN_T4.h>
 
 #include "global.h"
 
@@ -132,7 +132,7 @@ const uint32_t CANBUS_TIMEOUT = 2000;
 const uint32_t CANBUS_SPEED = 500000;
 const uint8_t MY_CAN_ID = 5;
 
-static FlexCAN CANbus(500000);
+static FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16> CANbus;
 
 void init()
 {
@@ -141,6 +141,7 @@ void init()
     digitalWrite(23, LOW);
 
     // Start CAN driver
+    CANbus.setBaudRate(500000);
     CANbus.begin();
 }
 
@@ -198,17 +199,14 @@ uint8_t send_request(uint8_t to_id, CAN_Request rqst)
         .msg_type = MSG_TYPE::MSG_REQ,
         .offset = rqst.from_offset,
     };
-    CAN_message_t msg{
-        .id = header.pack(),
-        .ext = 1,
-        .len = 3,
-        .timeout = 0,
-        .buf = {
-            rqst.to_table,
-            uint8_t(rqst.to_offset >> 3),
-            uint8_t(((rqst.to_offset << 5) & 0xE0) | len),
-        },
-    };
+
+    CAN_message_t msg;
+    msg.id = header.pack();
+    msg.flags.extended = 1;
+    msg.len = 3;
+    msg.buf[0] = rqst.to_table;
+    msg.buf[1] = uint8_t(rqst.to_offset >> 3);
+    msg.buf[2] = uint8_t(((rqst.to_offset << 5) & 0xE0) | len);
 
     CANbus.write(msg);
 
@@ -250,14 +248,11 @@ void rx_command(const CAN_message_t& msg)
                 .msg_type = MSG_TYPE::MSG_RSP,
                 .offset = (uint16_t)((msg.buf[2] >> 5) | ((uint16_t)msg.buf[1] << 3)),
             };
-        CAN_message_t rsp =
-            {
-                .id = rsp_header.pack(),
-                .ext = 1,
-                .len = (uint8_t)(msg.buf[2] & 0x0f),
-                .timeout = 0,
-                .buf = {0},
-            };
+
+        CAN_message_t rsp;
+        rsp.id = rsp_header.pack();
+        rsp.flags.extended = 1;
+        rsp.len = (uint8_t)(msg.buf[2] & 0x0f);
 
         if (header.table == 7)
         {
@@ -318,11 +313,10 @@ void update()
 {
     static bool wasConnected = false;
 
-    for (int i = CANbus.available(); i > 0; i--)
+    CAN_message_t msg;
+    while (CANbus.read(msg))
     {
-        CAN_message_t msg;
-        CANbus.read(msg);
-        msg.ext ? rx_command(msg) : rx_broadcast(msg);
+        msg.flags.extended ? rx_command(msg) : rx_broadcast(msg);
     }
 
     if (wasConnected && !GV.connected)

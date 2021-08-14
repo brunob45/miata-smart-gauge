@@ -141,8 +141,8 @@ void init()
     digitalWrite(23, LOW);
 
     // Start CAN driver
-    CANbus.setBaudRate(500000);
     CANbus.begin();
+    CANbus.setBaudRate(500000);
 }
 
 void rx_broadcast(const CAN_message_t& msg)

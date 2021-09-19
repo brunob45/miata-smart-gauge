@@ -123,6 +123,60 @@ void updateAccelGauge(uint16_t center_x, uint16_t center_y, uint16_t radius)
     init = true;
 }
 
+void updateAFRgraph(int16_t x, int16_t y, int16_t w, int16_t h)
+{
+    static int16_t cursor;
+    static uint32_t last_update = 0;
+    static uint8_t afrmin, afrmax;
+    static uint16_t cormin, cormax;
+    static uint16_t tgtmin, tgtmax;
+
+    tft.drawRect(x, y, w, h, ILI9341_WHITE);
+
+    const bool doUpdate = millis() - last_update >= 100 && GV.connected;
+    if (doUpdate)
+    {
+        const int16_t middle = y + h / 2 - 1;
+        const int16_t cursor_x = cursor + x + 1;
+
+        tft.drawLine(cursor_x, y + 1, cursor_x, y - 2 + h, ILI9341_BLACK);
+
+        int16_t h1 = middle + 147 - max(min(tgtmax, 167), 127);
+        int16_t h2 = middle + 147 - max(min(tgtmin, 167), 127);
+        tft.drawLine(cursor_x, h1, cursor_x, h2, ILI9341_YELLOW);
+
+        h1 = middle + max(min(1000 - cormin, 100), -100) / 5;
+        h2 = middle + max(min(1000 - cormax, 100), -100) / 5;
+        tft.drawLine(cursor_x, h1, cursor_x, h2, ILI9341_CYAN);
+
+        h1 = middle + 147 - max(min(afrmax, 167), 127);
+        h2 = middle + 147 - max(min(afrmin, 167), 127);
+        tft.drawLine(cursor_x, h1, cursor_x, h2, ILI9341_GREEN);
+
+        uint16_t tmp = afrmax;
+        afrmax = afrmin;
+        afrmin = tmp;
+
+        tmp = cormax;
+        cormax = cormin;
+        cormin = tmp;
+
+        tmp = tgtmax;
+        tgtmax = tgtmin;
+        tgtmin = tmp;
+
+        last_update = millis();
+        cursor = (cursor < w - 2) ? cursor + 1 : 0;
+        tft.drawLine(x + 1 + cursor, y + 1, x + 1 + cursor, y + h - 2, ILI9341_WHITE);
+    }
+    afrmin = min(afrmin, GV.ms.afr);
+    afrmax = max(afrmax, GV.ms.afr);
+    cormin = min(cormin, GV.ms.egocor);
+    cormax = max(cormax, GV.ms.egocor);
+    tgtmin = min(tgtmin, GV.ms.afrtgt);
+    tgtmax = max(tgtmax, GV.ms.afrtgt);
+}
+
 void drawNumber(int number, int scale, int offset, int x, int y)
 {
     const int fontsize = 3;
@@ -218,51 +272,29 @@ void initMenu2()
     initGauge();
 
     tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
-    tft.drawRect(5, 60 + 0, 82, 42, ILI9341_WHITE);
-    tft.setCursor(5, 60 + 50);
-    tft.print("MAP");
+    tft.setCursor(5, 60 + 0);
+    tft.print("ADV");
+
+    tft.setTextSize(1);
+    tft.setCursor(5, 105);
+    tft.setTextColor(ILI9341_GREEN, DISPLAY_BG);
+    tft.print("  AFR  ");
+    tft.setTextColor(ILI9341_YELLOW, DISPLAY_BG);
+    tft.print("TGT  ");
+    tft.setTextColor(ILI9341_CYAN, DISPLAY_BG);
+    tft.print("COR  ");
 }
 void updateMenu2()
 {
-    static uint8_t cursor = 0;
-    static uint32_t last_update = 0;
-    static uint8_t afrmin = 147, afrmax = 147;
-
     updateGauge();
-    updateAccelGauge(60, 240 - 50, 32);
-
-    const bool doUpdate = millis() - last_update >= 100 && GV.connected;
-    if (doUpdate)
-    {
-        tft.drawLine(6 + cursor, 61, 6 + cursor, 100, ILI9341_BLACK);
-
-        uint8_t h = 80 + 147 - max(min(GV.ms.afrtgt, 167), 127);
-        tft.drawPixel(6 + cursor, h, ILI9341_YELLOW);
-
-        h = 80 + max(min(1000 - GV.ms.egocor, 100), -100) / 5;
-        tft.drawPixel(6 + cursor, h, ILI9341_CYAN);
-
-        uint8_t h1 = 80 + 147 - max(min(afrmax, 167), 127);
-        uint8_t h2 = 80 + 147 - max(min(afrmin, 167), 127);
-        tft.drawLine(6 + cursor, h1, 6 + cursor, h2, ILI9341_GREEN);
-
-        uint8_t afrtmp = afrmax;
-        afrmax = afrmin;
-        afrmin = afrtmp;
-
-        last_update = millis();
-        cursor = (cursor < 79) ? cursor + 1 : 0;
-        tft.drawLine(6 + cursor, 61, 6 + cursor, 100, ILI9341_WHITE);
-    }
-
-    afrmin = min(afrmin, GV.ms.afr);
-    afrmax = max(afrmax, GV.ms.afr);
-
-    //drawNumber(GV.ms.map, 10, 3, 5, 77 + 50);
+    updateAccelGauge(68, 240 - 50, 32);
+    updateAFRgraph(5, 114, 102, 42);
 
     tft.fillRect(5, 158, 20, 64, ILI9341_BLACK);
     tft.fillRect(5, 158 + 64 - GV.ms.map / 1000.0 * 64.0, 20, GV.ms.map / 1000.0 * 64.0, ILI9341_GREEN);
     tft.drawRect(5, 158, 20, 64, ILI9341_WHITE);
+
+    drawNumber(GV.ms.adv, 10, 3, 5, 77 + 0);
 }
 
 } // namespace Internal

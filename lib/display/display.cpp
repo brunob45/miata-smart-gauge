@@ -3,8 +3,13 @@
 #include "git_sha.h"
 #include "point.h"
 
-#define TFT_DC 9
+#include <tgx.h>
+
+#define TFT_SCK 13
+#define TFT_MISO 12
+#define TFT_MOSI 11
 #define TFT_CS 10
+#define TFT_DC 9
 
 namespace Display
 {
@@ -30,17 +35,21 @@ void updateMenu2();
 DisplayMenu menus[] = {{initMenu0, updateMenu0}, {initMenu1, updateMenu1}, {initMenu2, updateMenu2}};
 uint8_t current_menu = 2;
 
-ILI9341_t3 tft(TFT_CS, TFT_DC);
+ILI9341_T4::DiffBuffStatic<6000> diff1;
+ILI9341_T4::DiffBuffStatic<6000> diff2;
+
+ILI9341_T4::ILI9341Driver tft(TFT_CS, TFT_DC, TFT_SCK, TFT_MOSI, TFT_MISO);
+
+uint16_t internal_fb[320 * 240];
+uint16_t fb[320 * 240];
 } // namespace Internal
 
 using namespace Internal;
 
 void init(void)
 {
-    tft.begin();
-    tft.setClock(60e6);
+    tft.begin(60e6);
     tft.setRotation(3);
-    tft.fillScreen(ILI9341_WHITE);
     menus[current_menu].init();
 
     tft.setCursor(45, 5);

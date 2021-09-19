@@ -1,7 +1,7 @@
 #if !defined(DASH_DISPLAY_H)
 #define DASH_DISPLAY_H
 
-#include <ILI9341_t3.h>
+#include <ILI9341_T4.h>
 
 #define DISPLAY_ALERT ILI9341_RED
 #define DISPLAY_ACCENT1 0x7fe2

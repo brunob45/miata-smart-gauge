@@ -225,13 +225,23 @@ void initMenu2()
 void updateMenu2()
 {
     static uint8_t cursor = 0;
+    static uint32_t last_update = 0;
+
     updateGauge();
     updateAccelGauge(60, 240 - 50, 32);
 
-    tft.drawLine(6 + cursor, 61, 6 + cursor, 100, ILI9341_BLACK);
-    uint8_t h = 80 + 147 - max(min(GV.ms.afr, 167), 127);
-    tft.drawPixel(6 + cursor, h, ILI9341_RED);
-    cursor = (cursor < 79) ? cursor++ : 0;
+    if (millis() - last_update >= 100)
+    {
+        uint8_t h = 80 + 147 - max(min(GV.ms.afrtgt, 167), 127);
+        tft.drawPixel(6 + cursor, h, ILI9341_BLUE);
+
+        h = 80 + 147 - max(min(GV.ms.afr, 167), 127);
+        tft.drawPixel(6 + cursor, h, ILI9341_GREEN);
+
+        last_update = millis();
+        cursor = (cursor < 79) ? cursor + 1 : 0;
+        tft.drawLine(6 + cursor, 61, 6 + cursor, 100, ILI9341_BLACK);
+    }
 
     drawNumber(GV.ms.map, 10, 3, 5, 77 + 50);
 }

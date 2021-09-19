@@ -13,7 +13,7 @@ Point gaugeCenter(320 - 52, 240 - 82, Point::CARTESIAN);
 int16_t gaugeRadius = 140;
 uint16_t GAUGE_BG = DISPLAY_BG;
 
-extern ILI9341_t3 tft;
+extern ILI9341_t3n tft;
 
 uint8_t numSize(int n)
 {
@@ -218,16 +218,21 @@ void initMenu2()
     initGauge();
 
     tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
-    tft.setCursor(5, 60 + 0);
-    tft.print("EGO COR");
+    tft.drawRect(5, 60 + 0, 82, 42, ILI9341_WHITE);
     tft.setCursor(5, 60 + 50);
     tft.print("MAP");
 }
 void updateMenu2()
 {
+    static uint8_t cursor = 0;
     updateGauge();
     updateAccelGauge(60, 240 - 50, 32);
-    drawNumber(GV.ms.egocor, 10, 3, 5, 77 + 0);
+
+    tft.drawLine(6 + cursor, 61, 6 + cursor, 100, ILI9341_BLACK);
+    uint8_t h = 80 + 147 - max(min(GV.ms.afr, 167), 127);
+    tft.drawPixel(6 + cursor, h, ILI9341_RED);
+    cursor = (cursor < 79) ? cursor++ : 0;
+
     drawNumber(GV.ms.map, 10, 3, 5, 77 + 50);
 }
 

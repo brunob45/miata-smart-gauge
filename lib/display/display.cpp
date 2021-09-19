@@ -3,11 +3,6 @@
 #include "git_sha.h"
 #include "point.h"
 
-#include <tgx.h>
-
-#define TFT_SCK 13
-#define TFT_MISO 12
-#define TFT_MOSI 11
 #define TFT_CS 10
 #define TFT_DC 9
 
@@ -35,13 +30,9 @@ void updateMenu2();
 DisplayMenu menus[] = {{initMenu0, updateMenu0}, {initMenu1, updateMenu1}, {initMenu2, updateMenu2}};
 uint8_t current_menu = 2;
 
-ILI9341_T4::DiffBuffStatic<6000> diff1;
-ILI9341_T4::DiffBuffStatic<6000> diff2;
+DMAMEM uint16_t tft_frame_buffer[240 * 320];
 
-ILI9341_T4::ILI9341Driver tft(TFT_CS, TFT_DC, TFT_SCK, TFT_MOSI, TFT_MISO);
-
-uint16_t internal_fb[320 * 240];
-uint16_t fb[320 * 240];
+ILI9341_t3n tft(TFT_CS, TFT_DC);
 } // namespace Internal
 
 using namespace Internal;
@@ -49,7 +40,10 @@ using namespace Internal;
 void init(void)
 {
     tft.begin(60e6);
+    tft.setFrameBuffer(tft_frame_buffer);
+    tft.useFrameBuffer(true);
     tft.setRotation(3);
+
     menus[current_menu].init();
 
     tft.setCursor(45, 5);
@@ -66,7 +60,7 @@ void update(void)
 
     const uint32_t now = millis();
 
-    if (now - last_update < 100)
+    if (tft.asyncUpdateActive())
         return;
 
     menus[current_menu].update();
@@ -75,7 +69,7 @@ void update(void)
     tft.setTextSize(1);
     tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
 
-    size_t line_len = tft.print(millis() - now);
+    size_t line_len = tft.print(now - last_update);
     line_len += tft.print("ms, ");
 
     uint32_t seconds = now / 1000;
@@ -110,7 +104,7 @@ void update(void)
     {
         tft.print(' ');
     }
-
+    tft.updateScreenAsync();
     last_update = now;
 }
 

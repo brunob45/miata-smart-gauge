@@ -226,24 +226,43 @@ void updateMenu2()
 {
     static uint8_t cursor = 0;
     static uint32_t last_update = 0;
+    static uint8_t afrmin = 147, afrmax = 147;
 
     updateGauge();
     updateAccelGauge(60, 240 - 50, 32);
 
-    if (millis() - last_update >= 100)
+    const bool doUpdate = millis() - last_update >= 100 && GV.connected;
+    if (doUpdate)
     {
-        uint8_t h = 80 + 147 - max(min(GV.ms.afrtgt, 167), 127);
-        tft.drawPixel(6 + cursor, h, ILI9341_BLUE);
+        tft.drawLine(6 + cursor, 61, 6 + cursor, 100, ILI9341_BLACK);
 
-        h = 80 + 147 - max(min(GV.ms.afr, 167), 127);
-        tft.drawPixel(6 + cursor, h, ILI9341_GREEN);
+        uint8_t h = 80 + 147 - max(min(GV.ms.afrtgt, 167), 127);
+        tft.drawPixel(6 + cursor, h, ILI9341_YELLOW);
+
+        h = 80 + max(min(1000 - GV.ms.egocor, 100), -100) / 5;
+        tft.drawPixel(6 + cursor, h, ILI9341_CYAN);
+
+        uint8_t h1 = 80 + 147 - max(min(afrmax, 167), 127);
+        uint8_t h2 = 80 + 147 - max(min(afrmin, 167), 127);
+        tft.drawLine(6 + cursor, h1, 6 + cursor, h2, ILI9341_GREEN);
+
+        uint8_t afrtmp = afrmax;
+        afrmax = afrmin;
+        afrmin = afrtmp;
 
         last_update = millis();
         cursor = (cursor < 79) ? cursor + 1 : 0;
-        tft.drawLine(6 + cursor, 61, 6 + cursor, 100, ILI9341_BLACK);
+        tft.drawLine(6 + cursor, 61, 6 + cursor, 100, ILI9341_WHITE);
     }
 
-    drawNumber(GV.ms.map, 10, 3, 5, 77 + 50);
+    afrmin = min(afrmin, GV.ms.afr);
+    afrmax = max(afrmax, GV.ms.afr);
+
+    //drawNumber(GV.ms.map, 10, 3, 5, 77 + 50);
+
+    tft.fillRect(5, 158, 20, 64, ILI9341_BLACK);
+    tft.fillRect(5, 158 + 64 - GV.ms.map / 1000.0 * 64.0, 20, GV.ms.map / 1000.0 * 64.0, ILI9341_GREEN);
+    tft.drawRect(5, 158, 20, 64, ILI9341_WHITE);
 }
 
 } // namespace Internal

@@ -71,7 +71,7 @@ void update(void)
 
     const uint32_t now = millis();
 
-    if (!initDone && now > 3000)
+    if (!initDone && now > 2000)
     {
         menus[current_menu].init();
 

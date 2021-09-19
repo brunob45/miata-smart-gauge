@@ -145,10 +145,8 @@ void init()
     CANbus.setBaudRate(500000);
 }
 
-void rx_broadcast(const CAN_message_t& msg)
+bool rx_broadcast(const CAN_message_t& msg)
 {
-    static elapsedMillis em;
-
     // Convert each field from big endian to local format
     switch (msg.id)
     {
@@ -157,35 +155,30 @@ void rx_broadcast(const CAN_message_t& msg)
         GV.ms.rpm = (msg.buf[2] << 8) | (msg.buf[3] << 0);
         GV.ms.clt = (msg.buf[4] << 8) | (msg.buf[5] << 0);
         GV.ms.tps = (msg.buf[6] << 8) | (msg.buf[7] << 0);
-        em = 0;
-        break;
+        return true;
     case 1513:
         GV.ms.pw1 = (msg.buf[0] << 8) | (msg.buf[1] << 0);
         GV.ms.pw2 = (msg.buf[2] << 8) | (msg.buf[3] << 0);
         GV.ms.mat = (msg.buf[4] << 8) | (msg.buf[5] << 0);
         GV.ms.adv = (msg.buf[6] << 8) | (msg.buf[7] << 0);
-        em = 0;
-        break;
+        return true;
     case 1514:
         GV.ms.afrtgt = msg.buf[0];
         GV.ms.afr = msg.buf[1];
         GV.ms.egocor = (msg.buf[2] << 8) | (msg.buf[3] << 0);
         GV.ms.egt = (msg.buf[4] << 8) | (msg.buf[5] << 0);
         GV.ms.pwseq = (msg.buf[6] << 8) | (msg.buf[7] << 0);
-        em = 0;
-        break;
+        return true;
     case 1515:
         GV.ms.batt = (msg.buf[0] << 8) | (msg.buf[1] << 0);
         GV.ms.sensors1 = (msg.buf[2] << 8) | (msg.buf[3] << 0);
         GV.ms.sensors2 = (msg.buf[4] << 8) | (msg.buf[5] << 0);
         GV.ms.knk_rtd = (msg.buf[6] << 8) | (msg.buf[7] << 0);
-        em = 0;
-        break;
+        return true;
     default:
         // unknown id
-        break;
+        return false;
     }
-    GV.connected = (em < CANBUS_TIMEOUT); // Timeout after 5s
 }
 
 uint8_t send_request(uint8_t to_id, CAN_Request rqst)
@@ -213,13 +206,13 @@ uint8_t send_request(uint8_t to_id, CAN_Request rqst)
     return len;
 }
 
-void rx_command(const CAN_message_t& msg)
+bool rx_command(const CAN_message_t& msg)
 {
     msg_header_t header;
     header.decode(msg.id);
     if (header.to_id != MY_CAN_ID)
     {
-        return;
+        return false;
     }
 
     // if (msg_type == MSG_TYPE::MSG_XTND)
@@ -307,18 +300,24 @@ void rx_command(const CAN_message_t& msg)
     default:
         break;
     }
+    return true;
 }
 
 void update()
 {
     static bool wasConnected = false;
+    static elapsedMillis em = CANBUS_TIMEOUT;
 
     CAN_message_t msg;
     while (CANbus.read(msg))
     {
-        msg.flags.extended ? rx_command(msg) : rx_broadcast(msg);
+        if (msg.flags.extended ? rx_command(msg) : rx_broadcast(msg))
+        {
+            em = 0;
+        }
     }
 
+    GV.connected = (em < CANBUS_TIMEOUT); // Timeout after 5s
     if (wasConnected && !GV.connected)
     {
         // Connection lost, reset ms values to 0

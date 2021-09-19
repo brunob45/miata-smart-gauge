@@ -68,7 +68,10 @@ void loop(void)
     GV.alert = GV.ms.rpm > 7200;
 
     GV.lumi = analogRead(A6);
-    analogWrite(6, (GV.lumi > 512) ? 30 : 255);
+    if (millis() > 500)
+    {
+        analogWrite(6, (GV.lumi > 512) ? 30 : 255);
+    }
 
     if (millis() - last_fault_change > 500)
     {

@@ -5,30 +5,38 @@
 
 class FilterClass
 {
-    const float _strength;
-    float _history;
+    const float _a;
+    float _y0;
+    float _x1;
 
 public:
-    constexpr FilterClass(float strength)
-        : _strength(strength), _history(0.0f)
+    constexpr FilterClass(float a)
+        : _a(a), _y0(0.0f), _x1(0.0f)
     {
     }
 
-    float reset(float value = 0.0f)
+    float reset(float x0 = 0.0f)
     {
-        _history = value;
-        return _history;
+        _y0 = _x1 = x0;
+        return _y0;
     }
 
-    float put(float value)
+    float put(float x0)
     {
-        _history += (value - _history) * _strength;
-        return _history;
+#if IMPROVED_FILTER
+        // as seen at https://dsp.stackexchange.com/a/60286
+        float avg = (x0 + _x1) / 2;
+        _y0 += (avg - _y0) * _a;
+#else
+        _y0 += (x0 - _y0) * _a;
+#endif
+        _x1 = x0;
+        return _y0;
     }
 
     float get()
     {
-        return _history;
+        return _y0;
     }
 };
 

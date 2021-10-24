@@ -45,15 +45,11 @@ void update(void)
     }
     else
     {
-        // Update gravity (really low pass filter)
-        gx.put(msa.x_g);
-        gy.put(msa.y_g);
-        gz.put(msa.z_g);
-
-        // Update accel (high pass filter then shallow low pass filter)
-        GV.accel.x = fx.put(msa.x_g - gx.get());
-        GV.accel.y = fy.put(msa.y_g - gy.get());
-        GV.accel.z = fz.put(msa.z_g - gz.get());
+        // Update gravity (low pass filter)
+        // Update accel (band pass filter)
+        GV.accel.x = fx.put(msa.x_g) - gx.put(msa.x_g);
+        GV.accel.y = fy.put(msa.y_g) - gx.put(msa.y_g);
+        GV.accel.z = fz.put(msa.z_g) - gx.put(msa.z_g);
     }
 
     last_update = now;

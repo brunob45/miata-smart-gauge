@@ -11,10 +11,7 @@ namespace
 {
 Adafruit_MSA301 msa;
 FilterClass fx(0.05f), fy(0.05f), fz(0.05f);
-
-const float ANGLE = 24.0f * DEG_TO_RAD;
-const float SINUS = sinf(ANGLE);
-const float COSINUS = cosf(ANGLE);
+FilterClass gx(0.002f), gy(0.002f), gz(0.002f);
 } // namespace
 
 float AccelValue::norm()
@@ -40,17 +37,24 @@ void update(void)
 
     msa.read();
 
-    fx.put(msa.x_g);
+    if (last_update == 0)
+    {
+        gx.reset(msa.x_g);
+        gy.reset(msa.y_g);
+        gz.reset(msa.z_g);
+    }
+    else
+    {
+        // Update gravity (really low pass filter)
+        gx.put(msa.x_g);
+        gy.put(msa.y_g);
+        gz.put(msa.z_g);
 
-    // x2 = cosβ*x1 − sinβ*y1
-    fy.put(COSINUS * msa.z_g - SINUS * msa.y_g);
-
-    // y2 = sinβ*x1 + cosβ*y1
-    fz.put(SINUS * msa.z_g + COSINUS * msa.y_g);
-
-    GV.accel.x = fx.get();
-    GV.accel.y = fy.get();
-    GV.accel.z = fz.get();
+        // Update accel (high pass filter then shallow low pass filter)
+        GV.accel.x = fx.put(msa.x_g - gx.get());
+        GV.accel.y = fy.put(msa.y_g - gy.get());
+        GV.accel.z = fz.put(msa.z_g - gz.get());
+    }
 
     last_update = now;
 }

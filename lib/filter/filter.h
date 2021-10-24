@@ -14,9 +14,16 @@ public:
     {
     }
 
-    void put(float value)
+    float reset(float value = 0.0f)
+    {
+        _history = value;
+        return _history;
+    }
+
+    float put(float value)
     {
         _history += (value - _history) * _strength;
+        return _history;
     }
 
     float get()

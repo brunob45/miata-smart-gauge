@@ -1,8 +1,6 @@
 #include "speedo.h"
 
-#include <FreqMeasureMulti.h>
-#include <elapsedMillis.h>
-
+#include "fast_micros.h"
 #include "filter.h"
 #include "global.h"
 
@@ -21,7 +19,7 @@ FilterClass filter(0.05f / 0.2f);
 
 void pin_callback()
 {
-    const uint32_t now = micros();
+    const uint32_t now = fast_micros();
     if (have_sync)
     {
         last_edge_period = now - last_edge_time;
@@ -44,11 +42,11 @@ void update()
 
     if (have_sync)
     {
-        const uint32_t my_period = max(last_edge_period, micros() - last_edge_time);
+        const uint32_t my_period = max(last_edge_period, fast_micros() - last_edge_time);
         if (my_period > 500000) // 500 ms = 2 Hz
         {
             have_sync = false;
-            GV.vss = 0;
+            GV.vss = -1;
             filter.reset();
         }
         else

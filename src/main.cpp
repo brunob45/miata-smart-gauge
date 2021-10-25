@@ -24,6 +24,14 @@ uint16_t comm_index = 0;
 
 void setup()
 {
+    if (ARM_DWT_CYCCNT == ARM_DWT_CYCCNT)
+    {
+        // Enable CPU Cycle Count
+        // https://forum.pjrc.com/threads/58321-micros()-within-Interrupt-possible?p=220956&viewfull=1#post220956
+        ARM_DEMCR |= ARM_DEMCR_TRCENA;
+        ARM_DWT_CTRL |= ARM_DWT_CTRL_CYCCNTENA;
+    }
+
     pinMode(6, OUTPUT);
     digitalWrite(6, LOW);
     pinMode(A6, INPUT);

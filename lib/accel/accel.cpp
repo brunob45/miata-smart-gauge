@@ -51,8 +51,8 @@ void update(void)
     // Update gravity (low pass filter)
     // Update accel (band pass filter)
     GV.accel.x = fx.put(msa.x_g) - gx.put(msa.x_g);
-    GV.accel.y = fy.put(msa.y_g) - gx.put(msa.y_g);
-    GV.accel.z = fz.put(msa.z_g) - gx.put(msa.z_g);
+    GV.accel.y = fy.put(msa.y_g) - gy.put(msa.y_g);
+    GV.accel.z = fz.put(msa.z_g) - gz.put(msa.z_g);
 
     last_update = 0;
 }

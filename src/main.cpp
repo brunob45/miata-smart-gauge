@@ -37,7 +37,6 @@ void setup()
     pinMode(A6, INPUT);
 
     Serial.begin(115200);
-    Serial1.begin(115200);
 
     Accel::init();
     Speedo::init();
@@ -101,59 +100,3 @@ void loop(void)
 
     Display::update();
 }
-
-// static void update_comms(void)
-// {
-//     static bool usb_ongoing = false, local_ongoing = false;
-//     static int update_counter = 0, last_usb_receive = 0;
-//     ++update_counter;
-//     ++last_usb_receive;
-
-//     if (usb_ongoing)
-//     {
-//         for (int xfer_size = Serial.available(); xfer_size > 0; xfer_size--)
-//         {
-//             last_usb_receive = 0;
-//             Serial1.write(Serial.read());
-//         }
-//         for (int xfer_size = Serial1.available(); xfer_size > 0; xfer_size--)
-//         {
-//             last_usb_receive = 0;
-//             Serial.write(Serial1.read());
-//         }
-//         if (last_usb_receive > 500)
-//         {
-//             usb_ongoing = false;
-//         }
-//     }
-//     else if (local_ongoing)
-//     {
-//         for (int xfer_size = Serial1.available(); xfer_size > 0; xfer_size--)
-//         {
-//             ((uint8_t*)&cs)[comm_index++] = Serial1.read();
-//             last_index = comm_index;
-//             local_ongoing = comm_index < sizeof(CurrentStatus);
-//         }
-//         if (update_counter > 100)
-//         {
-//             // timeout
-//             cs.rpm = 0;
-//             local_ongoing = false;
-//         }
-//     }
-//     else
-//     {
-//         if (Serial.available())
-//         {
-//             usb_ongoing = true;
-//         }
-//         else if (update_counter > 50)
-//         {
-//             local_ongoing = true;
-//             update_counter = 0;
-//             comm_index = 0;
-//             last_index = 0;
-//             Serial1.write('r');
-//         }
-//     }
-// }

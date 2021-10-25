@@ -1,5 +1,6 @@
 #include "canbus.h"
 
+#include <Arduino.h>
 #include <FlexCAN_T4.h>
 
 #include "global.h"
@@ -29,7 +30,7 @@ enum class MSG_TYPE : uint8_t
 
 struct msg_header_t
 {
-    uint32_t id;
+    uint32_t cob_id;
     uint8_t table;
     uint8_t to_id;
     uint8_t from_id;
@@ -38,7 +39,7 @@ struct msg_header_t
 
     void decode(uint32_t can_id)
     {
-        id = can_id;
+        cob_id = can_id;
 
         table = (can_id >> 3) & 0x0f;
         table |= ((can_id << 2) & 0x10); // add last bit to table index
@@ -51,22 +52,22 @@ struct msg_header_t
 
     uint32_t pack()
     {
-        id = 0;
+        cob_id = 0;
 
-        id |= ((uint32_t)table & 0x10) >> 2;
-        id |= ((uint32_t)table & 0x0f) << 3;
-        id |= ((uint32_t)to_id & 0x0f) << 7;
-        id |= ((uint32_t)from_id & 0x0f) << 11;
-        id |= ((uint32_t)msg_type & 0x07) << 15;
-        id |= ((uint32_t)offset & 0x3ff) << 18;
+        cob_id |= ((uint32_t)table & 0x10) >> 2;
+        cob_id |= ((uint32_t)table & 0x0f) << 3;
+        cob_id |= ((uint32_t)to_id & 0x0f) << 7;
+        cob_id |= ((uint32_t)from_id & 0x0f) << 11;
+        cob_id |= ((uint32_t)msg_type & 0x07) << 15;
+        cob_id |= ((uint32_t)offset & 0x3ff) << 18;
 
-        return id;
+        return cob_id;
     }
 
     void print(Print& s)
     {
         s.print('{');
-        s.print(id, HEX);
+        s.print(cob_id, HEX);
         s.print(',');
         s.print(table);
         s.print(',');
@@ -117,16 +118,6 @@ struct msg_header_t
         s.println();
     }
 };
-
-struct CAN_Request
-{
-    bool active;
-    uint8_t from_table;
-    uint16_t from_offset;
-    uint8_t to_table;
-    uint16_t to_offset;
-    uint16_t length;
-} pending_request;
 
 const uint32_t CANBUS_TIMEOUT = 2000;
 const uint32_t CANBUS_SPEED = 500000;
@@ -181,29 +172,29 @@ bool rx_broadcast(const CAN_message_t& msg)
     }
 }
 
-uint8_t send_request(uint8_t to_id, CAN_Request rqst)
+void send_request(uint8_t id,
+                  uint8_t table,
+                  uint16_t offset,
+                  uint8_t lenght)
 {
-    uint8_t len = min(rqst.length, 8);
     msg_header_t header{
-        .id = 0,
-        .table = rqst.from_table,
-        .to_id = to_id,
+        .cob_id = 0,
+        .table = table,
+        .to_id = id,
         .from_id = MY_CAN_ID,
         .msg_type = MSG_TYPE::MSG_REQ,
-        .offset = rqst.from_offset,
+        .offset = offset,
     };
 
     CAN_message_t msg;
     msg.id = header.pack();
     msg.flags.extended = 1;
     msg.len = 3;
-    msg.buf[0] = rqst.to_table;
-    msg.buf[1] = uint8_t(rqst.to_offset >> 3);
-    msg.buf[2] = uint8_t(((rqst.to_offset << 5) & 0xE0) | len);
+    msg.buf[0] = table;
+    msg.buf[1] = uint8_t(offset >> 3);
+    msg.buf[2] = uint8_t(((offset << 5) & 0xE0) | lenght);
 
     CANbus.write(msg);
-
-    return len;
 }
 
 bool rx_command(const CAN_message_t& msg)
@@ -234,7 +225,7 @@ bool rx_command(const CAN_message_t& msg)
     {
         msg_header_t rsp_header =
             {
-                .id = 0,
+                .cob_id = 0,
                 .table = msg.buf[0],
                 .to_id = header.from_id,
                 .from_id = MY_CAN_ID,
@@ -273,18 +264,11 @@ bool rx_command(const CAN_message_t& msg)
     break;
     case MSG_TYPE::MSG_RSP:
     {
-        if (pending_request.active)
-        {
-            uint8_t len = send_request(0, pending_request);
-
-            pending_request.from_offset += len;
-            pending_request.to_offset += len;
-            pending_request.length -= len;
-            pending_request.active &= (pending_request.length > 0);
-        }
+        Serial.println("MSG_RSP");
     }
     case MSG_TYPE::MSG_CMD:
     {
+        Serial.println("MSG_CMD");
     }
     break;
     case MSG_TYPE::MSG_XSUB:
@@ -306,18 +290,19 @@ bool rx_command(const CAN_message_t& msg)
 void update()
 {
     static bool wasConnected = false;
-    static elapsedMillis em = CANBUS_TIMEOUT;
+    static elapsedMillis last_frame;
+    static elapsedMillis last_update;
 
     CAN_message_t msg;
     while (CANbus.read(msg))
     {
         if (msg.flags.extended ? rx_command(msg) : rx_broadcast(msg))
         {
-            em = 0;
+            last_frame = 0;
         }
     }
 
-    GV.connected = (em < CANBUS_TIMEOUT); // Timeout after 5s
+    GV.connected = (last_frame < CANBUS_TIMEOUT); // Timeout after 5s
     if (wasConnected && !GV.connected)
     {
         // Connection lost, reset ms values to 0
@@ -327,5 +312,11 @@ void update()
         }
     }
     wasConnected = GV.connected;
+
+    if (GV.connected && (last_update >= 1000))
+    {
+        send_request(0, 1, 0, 4);
+        last_update = 0;
+    }
 }
 } // namespace CanBus

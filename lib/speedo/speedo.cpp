@@ -10,55 +10,53 @@ namespace Speedo
 {
 namespace
 {
-FreqMeasureMulti fmm;
-elapsedMillis time_since_last_edge;
-bool lost_sync = false;
+volatile uint32_t last_edge_period;
+volatile uint32_t last_edge_time;
+volatile bool have_sync = false;
 
-FilterClass filter(0.1f);
+// filter constant = "refresh rate" / "signal lag" (in seconds)
+FilterClass filter(0.05f / 0.2f);
 
 } // namespace
 
+void pin_callback()
+{
+    const uint32_t now = micros();
+    if (have_sync)
+    {
+        last_edge_period = now - last_edge_time;
+    }
+    last_edge_time = now;
+    have_sync = true;
+}
+
 void init()
 {
-    fmm.begin(21);
-    time_since_last_edge = 0;
-    lost_sync = true;
-
-    // clear fmm buffer
-    while (fmm.available())
-    {
-        fmm.read();
-    }
+    have_sync = false;
+    attachInterrupt(21, pin_callback, RISING);
 }
 
 void update()
 {
-    for (int i = fmm.available(); i > 0; i--)
-    {
-        time_since_last_edge = 0;
-        const uint32_t period = fmm.read();
+    static elapsedMillis last_update;
+    if (last_update < 50)
+        return;
 
-        if (lost_sync)
+    if (have_sync)
+    {
+        const uint32_t my_period = max(last_edge_period, micros() - last_edge_time);
+        if (my_period > 500000) // 500 ms = 2 Hz
         {
-            lost_sync = false;
+            have_sync = false;
+            GV.vss = 0;
+            filter.reset();
         }
         else
         {
-            filter.put(period);
+            GV.vss = uint16_t(filter.put(my_period) / 10);
         }
     }
-
-    if (time_since_last_edge > 500) // 500 ms = 2 Hz
-    {
-        time_since_last_edge = 0;
-        filter.put(fmm.countToFrequency(2)); // 2 Hz
-        lost_sync = true;
-    }
-
-    const float frequency = fmm.countToFrequency(filter.get()) * 10;
-    GV.vss = lost_sync
-                 ? 0
-                 : constrain(frequency, 0, 65535);
+    last_update = 0;
 }
 
 } // namespace Speedo

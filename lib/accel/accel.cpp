@@ -10,8 +10,10 @@ namespace Accel
 namespace
 {
 Adafruit_MSA301 msa;
-FilterClass fx(0.05f), fy(0.05f), fz(0.05f);
-FilterClass gx(0.002f), gy(0.002f), gz(0.002f);
+
+// filter constant = "refresh rate" / "signal lag" (in seconds)
+FilterClass fx(0.020f / 0.40f), fy(0.020f / 0.40f), fz(0.020f / 0.40f);
+FilterClass gx(0.020f / 10.0f), gy(0.020f / 10.0f), gz(0.020f / 10.0f);
 } // namespace
 
 float AccelValue::norm()
@@ -24,35 +26,35 @@ float AccelValue::norm()
 
 void init(void)
 {
+    // Init MSA301
     msa.begin();
+
+    // Read accel values
+    msa.read();
+
+    // Init filters to first reading
+    gx.reset(msa.x_g);
+    gy.reset(msa.y_g);
+    gz.reset(msa.z_g);
 }
 
 void update(void)
 {
-    static uint32_t last_update = 0;
-    const uint32_t now = millis();
+    static elapsedMillis last_update;
 
-    if (now - last_update < 20)
+    if (last_update < 20)
         return;
 
+    // Update accel values
     msa.read();
 
-    if (last_update == 0)
-    {
-        gx.reset(msa.x_g);
-        gy.reset(msa.y_g);
-        gz.reset(msa.z_g);
-    }
-    else
-    {
-        // Update gravity (low pass filter)
-        // Update accel (band pass filter)
-        GV.accel.x = fx.put(msa.x_g) - gx.put(msa.x_g);
-        GV.accel.y = fy.put(msa.y_g) - gx.put(msa.y_g);
-        GV.accel.z = fz.put(msa.z_g) - gx.put(msa.z_g);
-    }
+    // Update gravity (low pass filter)
+    // Update accel (band pass filter)
+    GV.accel.x = fx.put(msa.x_g) - gx.put(msa.x_g);
+    GV.accel.y = fy.put(msa.y_g) - gx.put(msa.y_g);
+    GV.accel.z = fz.put(msa.z_g) - gx.put(msa.z_g);
 
-    last_update = now;
+    last_update = 0;
 }
 
 void print_debug(Print& p)

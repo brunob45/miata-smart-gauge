@@ -123,7 +123,16 @@ const uint32_t CANBUS_TIMEOUT = 2000;
 const uint32_t CANBUS_SPEED = 500000;
 const uint8_t MY_CAN_ID = 5;
 
+namespace
+{
 static FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16> CANbus;
+bool wasConnected = false;
+elapsedMillis last_frame = CANBUS_TIMEOUT;
+bool initDone = false;
+uint8_t vetable[16 * 16];
+uint8_t index = 0;
+bool requestPending = false;
+} // namespace
 
 void init()
 {
@@ -260,17 +269,24 @@ bool rx_command(const CAN_message_t& msg)
         // else send 0
 
         CANbus.write(rsp);
+        break;
     }
-    break;
     case MSG_TYPE::MSG_RSP:
-    {
-        Serial.println("MSG_RSP");
-    }
     case MSG_TYPE::MSG_CMD:
     {
-        Serial.println("MSG_CMD");
+        Serial.print("MSG_CMD ");
+        Serial.println(msg.buf[0]);
+        requestPending = false;
+
+        if (header.table == 9 && header.offset >= 256 && header.offset <= (512 - msg.len))
+        {
+            for (int i = 0; i < msg.len; i++)
+            {
+                vetable[header.offset + i] = msg.buf[i];
+            }
+        }
+        break;
     }
-    break;
     case MSG_TYPE::MSG_XSUB:
         break;
     case MSG_TYPE::MSG_BURN:
@@ -289,10 +305,6 @@ bool rx_command(const CAN_message_t& msg)
 
 void update()
 {
-    static bool wasConnected = false;
-    static elapsedMillis last_frame;
-    static elapsedMillis last_update;
-
     CAN_message_t msg;
     while (CANbus.read(msg))
     {
@@ -313,10 +325,17 @@ void update()
     }
     wasConnected = GV.connected;
 
-    if (GV.connected && (last_update >= 1000))
+    // Read ve table #2 content
+    if (GV.connected && !initDone && !requestPending)
     {
-        send_request(0, 1, 0, 4);
-        last_update = 0;
+        send_request(0, 9, 256 + (index * 8), 8);
+        ++index;
+        initDone = index >= (256 / 8);
+        requestPending = true;
+        if (initDone)
+        {
+            Serial.println("done");
+        }
     }
 }
 } // namespace CanBus

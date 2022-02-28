@@ -49,19 +49,6 @@ DMAMEM uint16_t tft_frame_buffer0[240 * 320];
 DMAMEM uint16_t tft_frame_buffer1[240 * 320];
 
 ILI9341_t3n tft(TFT_CS, TFT_DC);
-
-void switchFrameBuffer()
-{
-    if (tft.getFrameBuffer() == tft_frame_buffer0)
-    {
-        tft.setFrameBuffer(tft_frame_buffer1);
-    }
-    else
-    {
-        tft.setFrameBuffer(tft_frame_buffer0);
-    }
-}
-
 } // namespace Internal
 
 using namespace Internal;
@@ -70,24 +57,13 @@ void init(void)
 {
     get565cmap();
 
-    tft.begin(60e6);
-    switchFrameBuffer();
-    //tft.setFrameBuffer(fb);
+    tft.begin(70e6);
+    tft.setFrameBuffer(tft_frame_buffer0);
     tft.useFrameBuffer(true);
     tft.setRotation(3);
 
     tft.writeRect8BPP(0, 0, width, height, header_data, header_565_cmap);
     tft.updateScreenAsync();
-}
-
-void initFB()
-{
-    menus[current_menu].init();
-    tft.setCursor(45, 5);
-    tft.setTextSize(1);
-    tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
-
-    tft.print(GIT_SHA);
 }
 
 void update(void)
@@ -106,10 +82,13 @@ void update(void)
             _isReady = true;
             _readyTime = now;
 
-            // Init both Frame buffers.
-            initFB();
-            switchFrameBuffer();
-            initFB();
+            menus[current_menu].init();
+
+            tft.setCursor(45, 5);
+            tft.setTextSize(1);
+            tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
+
+            tft.print(GIT_SHA);
         }
         else
         {
@@ -119,59 +98,55 @@ void update(void)
 
     initDone |= (now - _readyTime) > 2000;
 
-    if (tft.asyncUpdateActive())
-    {
-        return;
-    }
-
     if (initDone)
     {
+        if (tft.asyncUpdateActive())
+            return;
+
+        menus[current_menu].update();
+
+        tft.setCursor(5, 240 - 10);
+        tft.setTextSize(1);
+        tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
+
+        size_t line_len = tft.print(last_delta);
+        line_len += tft.print("ms, ");
+
+        uint32_t seconds = now / 1000;
+        if (seconds >= 3600)
+        {
+            uint16_t hours = seconds / 3600;
+            seconds = seconds % 3600;
+            line_len += tft.print(hours);
+            line_len += tft.print("h");
+            if (seconds < 600)
+            {
+                line_len += tft.print(' ');
+            }
+        }
+        if (seconds >= 60)
+        {
+            uint16_t minutes = seconds / 60;
+            seconds = seconds % 60;
+            line_len += tft.print(minutes);
+            line_len += tft.print("m");
+            if (seconds < 10)
+            {
+                line_len += tft.print(' ');
+            }
+        }
+        line_len += tft.print(seconds);
+        line_len += tft.print("s");
+
+        // clear line
+        line_max = max(line_max, line_len);
+        for (size_t i = line_len; i < line_max; i++)
+        {
+            tft.print(' ');
+        }
         tft.updateScreenAsync();
-//        switchFrameBuffer();
         last_delta = now - last_update;
         last_update = now;
-    }
-
-    menus[current_menu].update();
-
-    tft.setCursor(5, 240 - 10);
-    tft.setTextSize(1);
-    tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
-
-    size_t line_len = tft.print(last_delta);
-    line_len += tft.print("ms, ");
-
-    uint32_t seconds = now / 1000;
-    if (seconds >= 3600)
-    {
-        uint16_t hours = seconds / 3600;
-        seconds = seconds % 3600;
-        line_len += tft.print(hours);
-        line_len += tft.print("h");
-        if (seconds < 600)
-        {
-            line_len += tft.print(' ');
-        }
-    }
-    if (seconds >= 60)
-    {
-        uint16_t minutes = seconds / 60;
-        seconds = seconds % 60;
-        line_len += tft.print(minutes);
-        line_len += tft.print("m");
-        if (seconds < 10)
-        {
-            line_len += tft.print(' ');
-        }
-    }
-    line_len += tft.print(seconds);
-    line_len += tft.print("s");
-
-    // clear line
-    line_max = max(line_max, line_len);
-    for (size_t i = line_len; i < line_max; i++)
-    {
-        tft.print(' ');
     }
 }
 

@@ -15,6 +15,7 @@ namespace Display
 void init(void);
 void update(void);
 void alert(bool enable);
+bool isReady();
 } // namespace Display
 
 #endif // DASH_DISPLAY_H

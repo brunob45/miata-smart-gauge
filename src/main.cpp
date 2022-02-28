@@ -75,7 +75,7 @@ void loop(void)
     GV.alert = GV.ms.rpm > 7200;
 
     GV.lumi = analogRead(A6);
-    if (millis() > 500)
+    if (Display::isReady())
     {
         analogWrite(6, (GV.lumi > 512) ? 30 : 255);
     }

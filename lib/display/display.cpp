@@ -3,21 +3,24 @@
 #include "git_sha.h"
 #include "miata.h"
 #include "point.h"
+#include "bg.c"
+
+#include <lvgl.h>
 
 #define TFT_CS 10
 #define TFT_DC 9
 
-static uint16_t header_565_cmap[256];
-constexpr void get565cmap()
-{
-    for (uint16_t i = 0; i < 256; i++)
-    {
-        const uint8_t r = header_data_cmap[i][0];
-        const uint8_t g = header_data_cmap[i][1];
-        const uint8_t b = header_data_cmap[i][2];
-        header_565_cmap[i] = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
-    }
-}
+// static uint16_t header_565_cmap[256];
+// constexpr void get565cmap()
+// {
+//     for (uint16_t i = 0; i < 256; i++)
+//     {
+//         const uint8_t r = header_data_cmap[i][0];
+//         const uint8_t g = header_data_cmap[i][1];
+//         const uint8_t b = header_data_cmap[i][2];
+//         header_565_cmap[i] = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
+//     }
+// }
 
 namespace Display
 {
@@ -46,28 +49,90 @@ bool _isReady = false;
 uint32_t _readyTime = 0;
 
 DMAMEM uint16_t tft_frame_buffer0[240 * 320];
-DMAMEM uint16_t tft_frame_buffer1[240 * 320];
 
 ILI9341_t3n tft(TFT_CS, TFT_DC);
 } // namespace Internal
 
 using namespace Internal;
 
+IntervalTimer it;
+IntervalTimer it2;
+
+static lv_disp_draw_buf_t draw_buf;
+static lv_color_t buf1[240 * 320 / 10];
+static lv_disp_drv_t disp_drv; /*Descriptor of a display driver*/
+static lv_obj_t* label;
+static lv_style_t style_text;
+
+void my_disp_flush(lv_disp_drv_t* disp, const lv_area_t* area, lv_color_t* color_p)
+{
+    for(int y = area->y1; y <= area->y2; y++) {
+        for(int x = area->x1; x <= area->x2; x++) {
+            tft.drawPixel(x, y, color_p->full);
+            color_p++;
+        }
+    }
+
+    lv_disp_flush_ready(disp);
+    // tft.writeRect(area->x1, area->y1, area->x2 - area->x1, area->y2 - area->y1, (uint16_t*)color_p);
+}
+
+void update_cpt()
+{
+    static int cpt;
+    lv_timer_handler();
+    lv_label_set_text_fmt(label, "%d", cpt++);
+}
+
 void init(void)
 {
-    get565cmap();
-
-    tft.begin(70e6);
+    tft.begin(60e6);
+    tft.setRotation(3);
     tft.setFrameBuffer(tft_frame_buffer0);
     tft.useFrameBuffer(true);
-    tft.setRotation(3);
+    tft.updateScreenAsync(true);
 
-    tft.writeRect8BPP(0, 0, width, height, header_data, header_565_cmap);
-    tft.updateScreenAsync();
+    tft.fillScreen(ILI9341_BLUE);
+
+    lv_init();
+    lv_disp_draw_buf_init(&draw_buf, buf1, NULL, 240 * 320 / 10);
+
+    lv_disp_drv_init(&disp_drv);       /*Basic initialization*/
+    disp_drv.flush_cb = my_disp_flush; /*Set your driver function*/
+    disp_drv.draw_buf = &draw_buf;     /*Assign the buffer to the display*/
+    disp_drv.hor_res = 320;            /*Set the horizontal resolution of the display*/
+    disp_drv.ver_res = 240;            /*Set the vertical resolution of the display*/
+    lv_disp_drv_register(&disp_drv);   /*Finally register the driver*/
+
+    // get565cmap();
+
+    lv_obj_t* obj = lv_img_create(lv_scr_act());
+
+    lv_img_set_src(obj, &splash_screen);
+    lv_obj_set_align(obj, LV_ALIGN_TOP_LEFT);
+
+    label = lv_label_create(lv_scr_act());
+    lv_obj_set_align(label, LV_ALIGN_TOP_LEFT);
+
+    lv_style_init(&style_text);
+    lv_style_set_text_color(&style_text, {.ch={.blue=0x1f, .green=0x3f, .red=0x1f}});
+    lv_style_set_text_font(&style_text, &lv_font_montserrat_28);
+    lv_obj_add_style(label, &style_text, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    // tft.writeRect8BPP(0, 0, width, height, header_data, header_565_cmap);
+    // tft.updateScreenAsync();
+
+    it.begin([]()
+             { lv_tick_inc(1); },
+             1000);
+    it2.begin(update_cpt, 20000);
 }
 
 void update(void)
 {
+    _isReady = true;
+    return;
+
     static bool initDone = false;
     static uint32_t last_update = 0;
     static uint32_t last_delta = 0;

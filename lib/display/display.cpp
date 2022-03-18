@@ -1,9 +1,9 @@
 #include "display.h"
 
+#include "bg.c"
 #include "git_sha.h"
 #include "miata.h"
 #include "point.h"
-#include "bg.c"
 
 #include <lvgl.h>
 
@@ -62,12 +62,15 @@ static lv_disp_draw_buf_t draw_buf;
 static lv_color_t buf1[240 * 320 / 10];
 static lv_disp_drv_t disp_drv; /*Descriptor of a display driver*/
 static lv_obj_t* label;
+static lv_obj_t* gauge;
 static lv_style_t style_text;
 
 void my_disp_flush(lv_disp_drv_t* disp, const lv_area_t* area, lv_color_t* color_p)
 {
-    for(int y = area->y1; y <= area->y2; y++) {
-        for(int x = area->x1; x <= area->x2; x++) {
+    for (int y = area->y1; y <= area->y2; y++)
+    {
+        for (int x = area->x1; x <= area->x2; x++)
+        {
             tft.drawPixel(x, y, color_p->full);
             color_p++;
         }
@@ -114,8 +117,11 @@ void init(void)
     label = lv_label_create(lv_scr_act());
     lv_obj_set_align(label, LV_ALIGN_TOP_LEFT);
 
+    gauge = lv_meter_create(lv_scr_act());
+    lv_obj_set_align(gauge, LV_ALIGN_TOP_RIGHT);
+
     lv_style_init(&style_text);
-    lv_style_set_text_color(&style_text, {.ch={.blue=0x1f, .green=0x3f, .red=0x1f}});
+    lv_style_set_text_color(&style_text, {.ch = {.blue = 0x1f, .green = 0x3f, .red = 0x1f}});
     lv_style_set_text_font(&style_text, &lv_font_montserrat_28);
     lv_obj_add_style(label, &style_text, LV_PART_MAIN | LV_STATE_DEFAULT);
 

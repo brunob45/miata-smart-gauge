@@ -12,9 +12,9 @@ namespace Display
 {
 namespace
 {
-THD_WORKING_AREA(waThdLVGL, 80 * 64);
-THD_WORKING_AREA(waThdTick, 80 * 64);
-THD_WORKING_AREA(waThdLabel, 80 * 64);
+THD_WORKING_AREA(waThdLVGL, 10 * 256);
+THD_WORKING_AREA(waThdTick, 1 * 256);
+THD_WORKING_AREA(waThdLabel, 5 * 256);
 
 thread_t* pThdLabel;
 

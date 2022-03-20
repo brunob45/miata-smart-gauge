@@ -9,7 +9,7 @@ namespace Accel
 {
 namespace
 {
-THD_WORKING_AREA(waThdAccel, 80 * 64);
+THD_WORKING_AREA(waThdAccel, 1 * 256);
 
 Adafruit_MSA301 msa;
 

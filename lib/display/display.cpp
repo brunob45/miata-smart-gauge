@@ -1,72 +1,40 @@
 #include "display.h"
 
-#include "bg.c"
-#include "git_sha.h"
-#include "miata.h"
-#include "point.h"
-
+#include <ILI9341_t3n.h>
 #include <lvgl.h>
 
-#define TFT_CS 10
-#define TFT_DC 9
-
-// static uint16_t header_565_cmap[256];
-// constexpr void get565cmap()
-// {
-//     for (uint16_t i = 0; i < 256; i++)
-//     {
-//         const uint8_t r = header_data_cmap[i][0];
-//         const uint8_t g = header_data_cmap[i][1];
-//         const uint8_t b = header_data_cmap[i][2];
-//         header_565_cmap[i] = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
-//     }
-// }
+#define GET_UNUSED_STACK(wa) (chUnusedThreadStack(wa, sizeof(wa)))
+#define GET_USED_STACK(wa) (sizeof(wa) - GET_UNUSED_STACK(wa))
 
 namespace Display
 {
-namespace Internal
+namespace
 {
-struct DisplayMenu
-{
-    void (*init)();
-    void (*update)();
-};
+THD_WORKING_AREA(waThdLVGL, 80 * 64);
+THD_WORKING_AREA(waThdTick, 80 * 64);
+THD_WORKING_AREA(waThdLabel, 80 * 64);
 
-uint8_t numSize(uint16_t n);
-void drawNumber(int number, int scale, int offset, int x, int y);
+thread_t* pThdLabel;
 
-void initMenu0();
-void initMenu1();
-void initMenu2();
-
-void updateMenu0();
-void updateMenu1();
-void updateMenu2();
-
-DisplayMenu menus[] = {{initMenu0, updateMenu0}, {initMenu1, updateMenu1}, {initMenu2, updateMenu2}};
-uint8_t current_menu = 2;
-bool _isReady = false;
-uint32_t _readyTime = 0;
-
-DMAMEM uint16_t tft_frame_buffer0[240 * 320];
+const uint8_t TFT_CS = 10;
+const uint8_t TFT_DC = 9;
 
 ILI9341_t3n tft(TFT_CS, TFT_DC);
-} // namespace Internal
+DMAMEM uint16_t tft_frame_buffer0[240 * 320];
 
-using namespace Internal;
-
-IntervalTimer it;
-IntervalTimer it2;
-
-static lv_disp_draw_buf_t draw_buf;
-static lv_color_t buf1[240 * 320 / 10];
-static lv_disp_drv_t disp_drv; /*Descriptor of a display driver*/
-static lv_obj_t* label;
-static lv_obj_t* gauge;
-static lv_style_t style_text;
+const size_t lv_buf_size = 240 * 320 / 10;
+lv_disp_draw_buf_t draw_buf;
+lv_color_t buf1[lv_buf_size];
+lv_disp_drv_t disp_drv;
 
 void my_disp_flush(lv_disp_drv_t* disp, const lv_area_t* area, lv_color_t* color_p)
 {
+    while (tft.asyncUpdateActive())
+    {
+        // wait for previous flush to finish
+        chThdSleepMicroseconds(100);
+    }
+
     for (int y = area->y1; y <= area->y2; y++)
     {
         for (int x = area->x1; x <= area->x2; x++)
@@ -76,29 +44,21 @@ void my_disp_flush(lv_disp_drv_t* disp, const lv_area_t* area, lv_color_t* color
         }
     }
 
+    tft.updateScreenAsync(false);
     lv_disp_flush_ready(disp);
-    // tft.writeRect(area->x1, area->y1, area->x2 - area->x1, area->y2 - area->y1, (uint16_t*)color_p);
 }
 
-void update_cpt()
+THD_FUNCTION(ThreadLVGL, arg)
 {
-    static int cpt;
-    lv_timer_handler();
-    lv_label_set_text_fmt(label, "%d", cpt++);
-}
+    (void)arg;
 
-void init(void)
-{
     tft.begin(60e6);
     tft.setRotation(3);
     tft.setFrameBuffer(tft_frame_buffer0);
     tft.useFrameBuffer(true);
-    tft.updateScreenAsync(true);
-
-    tft.fillScreen(ILI9341_BLUE);
 
     lv_init();
-    lv_disp_draw_buf_init(&draw_buf, buf1, NULL, 240 * 320 / 10);
+    lv_disp_draw_buf_init(&draw_buf, buf1, NULL, lv_buf_size);
 
     lv_disp_drv_init(&disp_drv);       /*Basic initialization*/
     disp_drv.flush_cb = my_disp_flush; /*Set your driver function*/
@@ -107,127 +67,85 @@ void init(void)
     disp_drv.ver_res = 240;            /*Set the vertical resolution of the display*/
     lv_disp_drv_register(&disp_drv);   /*Finally register the driver*/
 
-    // get565cmap();
+    pinMode(6, OUTPUT);
+    digitalWrite(6, HIGH);
 
-    lv_obj_t* obj = lv_img_create(lv_scr_act());
+    chEvtSignal(pThdLabel, EVENT_MASK(0));
 
-    lv_img_set_src(obj, &splash_screen);
-    lv_obj_set_align(obj, LV_ALIGN_TOP_LEFT);
+    for (;;)
+    {
+        lv_timer_handler();
+        chThdSleepMilliseconds(20);
+    }
+}
 
-    label = lv_label_create(lv_scr_act());
+THD_FUNCTION(ThreadTick, arg)
+{
+    for (;;)
+    {
+        lv_tick_inc(1);
+        chThdSleepMilliseconds(1);
+    }
+}
+
+THD_FUNCTION(ThreadLabel, arg)
+{
+    pThdLabel = chThdGetSelfX();
+    chEvtWaitAny(ALL_EVENTS);
+
+    lv_obj_set_scrollbar_mode(lv_scr_act(), LV_SCROLLBAR_MODE_OFF);
+
+    lv_style_t style_main;
+    lv_style_init(&style_main);
+    lv_style_set_text_font(&style_main, &din1451_18);
+    lv_style_set_bg_color(&style_main, lv_color_black());
+    lv_style_set_text_color(&style_main, lv_color_white());
+    lv_obj_add_style(lv_scr_act(), &style_main, LV_STATE_DEFAULT);
+
+    lv_obj_t* label = lv_label_create(lv_scr_act());
     lv_obj_set_align(label, LV_ALIGN_TOP_LEFT);
 
-    gauge = lv_meter_create(lv_scr_act());
-    lv_obj_set_align(gauge, LV_ALIGN_TOP_RIGHT);
+    lv_obj_t* meter = lv_meter_create(lv_scr_act());
+    lv_obj_remove_style(meter, NULL, LV_PART_MAIN);
+    lv_obj_set_pos(meter, 160, 20);
+    lv_obj_set_size(meter, 220, 220);
 
-    lv_style_init(&style_text);
-    lv_style_set_text_color(&style_text, {.ch = {.blue = 0x1f, .green = 0x3f, .red = 0x1f}});
-    lv_style_set_text_font(&style_text, &lv_font_montserrat_28);
-    lv_obj_add_style(label, &style_text, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_meter_scale_t* scale = lv_meter_add_scale(meter);
+    const int rot = 110;
+    lv_meter_set_scale_range(meter, scale, 0, 80, (270 - rot) * 8 / 7, rot);
+    lv_meter_set_scale_ticks(meter, scale, 8 * 4 + 1, 2, 10, lv_palette_main(LV_PALETTE_LIME));
+    lv_meter_set_scale_major_ticks(meter, scale, 4, 4, 15, lv_color_white(), 15);
 
-    // tft.writeRect8BPP(0, 0, width, height, header_data, header_565_cmap);
-    // tft.updateScreenAsync();
+    lv_meter_indicator_t* indic = lv_meter_add_needle_line(meter, scale, 4, lv_palette_main(LV_PALETTE_LIME), -10);
 
-    it.begin([]()
-             { lv_tick_inc(1); },
-             1000);
-    it2.begin(update_cpt, 20000);
-}
+    lv_obj_t* label_rpm = lv_label_create(lv_scr_act());
+    lv_obj_align(label_rpm, LV_ALIGN_BOTTOM_RIGHT, -20, 0);
 
-void update(void)
-{
-    _isReady = true;
-    return;
+    int dir = 1;
+    int cpt = 0;
 
-    static bool initDone = false;
-    static uint32_t last_update = 0;
-    static uint32_t last_delta = 0;
-    static size_t line_max = 0;
-
-    const uint32_t now = millis();
-
-    if (!_isReady)
+    for (;;)
     {
-        if (!tft.asyncUpdateActive())
-        {
-            _isReady = true;
-            _readyTime = now;
+        uint16_t rpm = cpt * 100;
+        lv_meter_set_indicator_value(meter, indic, cpt);
+        lv_label_set_text_fmt(label_rpm, "%u", rpm);
 
-            menus[current_menu].init();
-
-            tft.setCursor(45, 5);
-            tft.setTextSize(1);
-            tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
-
-            tft.print(GIT_SHA);
-        }
-        else
-        {
-            return;
-        }
-    }
-
-    initDone |= (now - _readyTime) > 2000;
-
-    if (initDone)
-    {
-        if (tft.asyncUpdateActive())
-            return;
-
-        menus[current_menu].update();
-
-        tft.setCursor(5, 240 - 10);
-        tft.setTextSize(1);
-        tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
-
-        size_t line_len = tft.print(last_delta);
-        line_len += tft.print("ms, ");
-
-        uint32_t seconds = now / 1000;
-        if (seconds >= 3600)
-        {
-            uint16_t hours = seconds / 3600;
-            seconds = seconds % 3600;
-            line_len += tft.print(hours);
-            line_len += tft.print("h");
-            if (seconds < 600)
-            {
-                line_len += tft.print(' ');
-            }
-        }
-        if (seconds >= 60)
-        {
-            uint16_t minutes = seconds / 60;
-            seconds = seconds % 60;
-            line_len += tft.print(minutes);
-            line_len += tft.print("m");
-            if (seconds < 10)
-            {
-                line_len += tft.print(' ');
-            }
-        }
-        line_len += tft.print(seconds);
-        line_len += tft.print("s");
-
-        // clear line
-        line_max = max(line_max, line_len);
-        for (size_t i = line_len; i < line_max; i++)
-        {
-            tft.print(' ');
-        }
-        tft.updateScreenAsync();
-        last_delta = now - last_update;
-        last_update = now;
+        lv_label_set_text_fmt(label, "%u,%u,%u",
+                              GET_UNUSED_STACK(waThdLVGL),
+                              GET_UNUSED_STACK(waThdTick),
+                              GET_UNUSED_STACK(waThdLabel));
+        cpt += dir;
+        if (cpt == 80) dir = -1;
+        if (cpt == 0) dir = 1;
+        chThdSleepMilliseconds(100);
     }
 }
+} // namespace
 
-void alert(bool enable)
+void initThreads(tprio_t prio)
 {
+    chThdCreateStatic(waThdLabel, sizeof(waThdLabel), ++prio, ThreadLabel, NULL);
+    chThdCreateStatic(waThdLVGL, sizeof(waThdLVGL), ++prio, ThreadLVGL, NULL);
+    chThdCreateStatic(waThdTick, sizeof(waThdTick), ++prio, ThreadTick, NULL);
 }
-
-bool isReady()
-{
-    return _isReady;
-}
-
 } // namespace Display

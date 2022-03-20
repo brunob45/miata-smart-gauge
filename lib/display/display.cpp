@@ -102,6 +102,11 @@ THD_FUNCTION(ThreadLabel, arg)
     lv_style_set_text_color(&style_main, lv_color_white());
     lv_obj_add_style(lv_scr_act(), &style_main, LV_STATE_DEFAULT);
 
+    lv_style_t style_chart;
+    lv_style_init(&style_chart);
+    lv_style_set_border_color(&style_chart, lv_color_white());
+    lv_style_set_border_width(&style_chart, 1);
+
     lv_obj_t* label = lv_label_create(lv_scr_act());
     lv_obj_set_align(label, LV_ALIGN_TOP_LEFT);
 
@@ -121,14 +126,28 @@ THD_FUNCTION(ThreadLabel, arg)
     lv_obj_t* label_rpm = lv_label_create(lv_scr_act());
     lv_obj_align(label_rpm, LV_ALIGN_BOTTOM_RIGHT, -20, 0);
 
+    lv_obj_t* chart = lv_chart_create(lv_scr_act());
+    lv_obj_remove_style(chart, NULL, LV_PART_MAIN);
+    lv_obj_add_style(chart, &style_chart, LV_PART_MAIN);
+    lv_obj_align(chart, LV_ALIGN_LEFT_MID, 5, 0);
+    lv_obj_set_size(chart, 145, 50);
+    lv_chart_set_range(chart, LV_CHART_AXIS_PRIMARY_Y, 0, 8000);
+    lv_chart_set_point_count(chart, 150);
+
+    lv_chart_series_t* serie1 = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_LIME), LV_CHART_AXIS_PRIMARY_Y);
+
     int dir = 1;
     int cpt = 0;
 
     for (;;)
     {
         uint16_t rpm = cpt * 100;
+
         lv_meter_set_indicator_value(meter, indic, cpt);
+
         lv_label_set_text_fmt(label_rpm, "%u", rpm);
+
+        lv_chart_set_next_value(chart, serie1, rpm);
 
         lv_label_set_text_fmt(label, "%u,%u,%u",
                               GET_UNUSED_STACK(waThdLVGL),

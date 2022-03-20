@@ -49,6 +49,4 @@ struct GlobalVars
     uint16_t fault_code = 0x7fff;
 };
 
-extern GlobalVars GV;
-
 #endif // DASH_GLOBAL_H

@@ -6,17 +6,7 @@
 
 namespace Accel
 {
-struct AccelValue
-{
-    float x;
-    float y;
-    float z;
-
-    float norm();
-};
-AccelValue get();
-
-void initThreads(tprio_t prio = NORMALPRIO);
+void initThreads(tprio_t prio = NORMALPRIO, void* arg = NULL);
 size_t getUnusedStack();
 } // namespace Accel
 

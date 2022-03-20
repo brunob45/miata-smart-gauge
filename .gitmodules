@@ -1,6 +1,4 @@
 [submodule "lib/lvgl"]
 	path = lib/lvgl
 	url = https://github.com/lvgl/lvgl.git
-[submodule "lib/ChRt"]
-	path = lib/ChRt
-	url = https://github.com/greiman/ChRt
+

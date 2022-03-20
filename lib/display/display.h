@@ -6,7 +6,7 @@
 
 namespace Display
 {
-void initThreads(tprio_t prio = NORMALPRIO);
+void initThreads(tprio_t prio = NORMALPRIO, void* arg = NULL);
 }
 
 #endif // DISPLAY_H

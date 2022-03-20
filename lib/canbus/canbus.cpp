@@ -7,6 +7,19 @@
 
 namespace CanBus
 {
+namespace
+{
+THD_WORKING_AREA(waThd, 2 * 256);
+
+FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16> CANbus;
+
+const uint32_t CANBUS_TIMEOUT = 2000;
+const uint32_t CANBUS_SPEED = 500000;
+const uint8_t MY_CAN_ID = 5;
+
+bool requestPending = false;
+uint8_t vetable[16 * 16];
+
 enum class MSG_TYPE : uint8_t
 {
     MSG_CMD = 0,    // A 'poke' message to deposit data into memory.
@@ -118,62 +131,37 @@ struct msg_header_t
         s.println();
     }
 };
-
-const uint32_t CANBUS_TIMEOUT = 2000;
-const uint32_t CANBUS_SPEED = 500000;
-const uint8_t MY_CAN_ID = 5;
-
-namespace
-{
-static FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16> CANbus;
-bool wasConnected = false;
-elapsedMillis last_frame = CANBUS_TIMEOUT;
-bool initDone = false;
-uint8_t vetable[16 * 16];
-uint8_t index = 0;
-bool requestPending = false;
 } // namespace
 
-void init()
-{
-    // Enable CAN transceiver
-    pinMode(23, OUTPUT);
-    digitalWrite(23, LOW);
-
-    // Start CAN driver
-    CANbus.begin();
-    CANbus.setBaudRate(500000);
-}
-
-bool rx_broadcast(const CAN_message_t& msg)
+bool rx_broadcast(const CAN_message_t& msg, GlobalVars* pGV)
 {
     // Convert each field from big endian to local format
     switch (msg.id)
     {
     case 1512:
-        GV.ms.map = (msg.buf[0] << 8) | (msg.buf[1] << 0);
-        GV.ms.rpm = (msg.buf[2] << 8) | (msg.buf[3] << 0);
-        GV.ms.clt = (msg.buf[4] << 8) | (msg.buf[5] << 0);
-        GV.ms.tps = (msg.buf[6] << 8) | (msg.buf[7] << 0);
+        pGV->ms.map = (msg.buf[0] << 8) | (msg.buf[1] << 0);
+        pGV->ms.rpm = (msg.buf[2] << 8) | (msg.buf[3] << 0);
+        pGV->ms.clt = (msg.buf[4] << 8) | (msg.buf[5] << 0);
+        pGV->ms.tps = (msg.buf[6] << 8) | (msg.buf[7] << 0);
         return true;
     case 1513:
-        GV.ms.pw1 = (msg.buf[0] << 8) | (msg.buf[1] << 0);
-        GV.ms.pw2 = (msg.buf[2] << 8) | (msg.buf[3] << 0);
-        GV.ms.mat = (msg.buf[4] << 8) | (msg.buf[5] << 0);
-        GV.ms.adv = (msg.buf[6] << 8) | (msg.buf[7] << 0);
+        pGV->ms.pw1 = (msg.buf[0] << 8) | (msg.buf[1] << 0);
+        pGV->ms.pw2 = (msg.buf[2] << 8) | (msg.buf[3] << 0);
+        pGV->ms.mat = (msg.buf[4] << 8) | (msg.buf[5] << 0);
+        pGV->ms.adv = (msg.buf[6] << 8) | (msg.buf[7] << 0);
         return true;
     case 1514:
-        GV.ms.afrtgt = msg.buf[0];
-        GV.ms.afr = msg.buf[1];
-        GV.ms.egocor = (msg.buf[2] << 8) | (msg.buf[3] << 0);
-        GV.ms.egt = (msg.buf[4] << 8) | (msg.buf[5] << 0);
-        GV.ms.pwseq = (msg.buf[6] << 8) | (msg.buf[7] << 0);
+        pGV->ms.afrtgt = msg.buf[0];
+        pGV->ms.afr = msg.buf[1];
+        pGV->ms.egocor = (msg.buf[2] << 8) | (msg.buf[3] << 0);
+        pGV->ms.egt = (msg.buf[4] << 8) | (msg.buf[5] << 0);
+        pGV->ms.pwseq = (msg.buf[6] << 8) | (msg.buf[7] << 0);
         return true;
     case 1515:
-        GV.ms.batt = (msg.buf[0] << 8) | (msg.buf[1] << 0);
-        GV.ms.sensors1 = (msg.buf[2] << 8) | (msg.buf[3] << 0);
-        GV.ms.sensors2 = (msg.buf[4] << 8) | (msg.buf[5] << 0);
-        GV.ms.knk_rtd = (msg.buf[6] << 8) | (msg.buf[7] << 0);
+        pGV->ms.batt = (msg.buf[0] << 8) | (msg.buf[1] << 0);
+        pGV->ms.sensors1 = (msg.buf[2] << 8) | (msg.buf[3] << 0);
+        pGV->ms.sensors2 = (msg.buf[4] << 8) | (msg.buf[5] << 0);
+        pGV->ms.knk_rtd = (msg.buf[6] << 8) | (msg.buf[7] << 0);
         return true;
     default:
         // unknown id
@@ -206,7 +194,7 @@ void send_request(uint8_t id,
     CANbus.write(msg);
 }
 
-bool rx_command(const CAN_message_t& msg)
+bool rx_command(const CAN_message_t& msg, GlobalVars* pGV)
 {
     msg_header_t header;
     header.decode(msg.id);
@@ -251,19 +239,19 @@ bool rx_command(const CAN_message_t& msg)
         {
             if (header.offset == 2)
             {
-                rsp.buf[0] = uint8_t(GV.fault_code >> 8);
-                rsp.buf[1] = uint8_t(GV.fault_code >> 0);
-                rsp.buf[2] = uint8_t(int16_t(GV.accel.x * 100) >> 8);
-                rsp.buf[3] = uint8_t(int16_t(GV.accel.x * 100) >> 0);
-                rsp.buf[4] = uint8_t(int16_t(GV.accel.y * 100) >> 8);
-                rsp.buf[5] = uint8_t(int16_t(GV.accel.y * 100) >> 0);
-                rsp.buf[6] = uint8_t(int16_t(GV.accel.z * 100) >> 8);
-                rsp.buf[7] = uint8_t(int16_t(GV.accel.z * 100) >> 0);
+                rsp.buf[0] = uint8_t(pGV->fault_code >> 8);
+                rsp.buf[1] = uint8_t(pGV->fault_code >> 0);
+                rsp.buf[2] = uint8_t(int16_t(pGV->accel.x * 100) >> 8);
+                rsp.buf[3] = uint8_t(int16_t(pGV->accel.x * 100) >> 0);
+                rsp.buf[4] = uint8_t(int16_t(pGV->accel.y * 100) >> 8);
+                rsp.buf[5] = uint8_t(int16_t(pGV->accel.y * 100) >> 0);
+                rsp.buf[6] = uint8_t(int16_t(pGV->accel.z * 100) >> 8);
+                rsp.buf[7] = uint8_t(int16_t(pGV->accel.z * 100) >> 0);
             }
             else if (header.offset == 10)
             {
-                rsp.buf[0] = uint8_t(GV.vss >> 8);
-                rsp.buf[1] = uint8_t(GV.vss >> 0);
+                rsp.buf[0] = uint8_t(pGV->vss >> 8);
+                rsp.buf[1] = uint8_t(pGV->vss >> 0);
             }
         }
         // else send 0
@@ -303,39 +291,81 @@ bool rx_command(const CAN_message_t& msg)
     return true;
 }
 
-void update()
+THD_FUNCTION(ThreadCanBus, arg)
 {
-    CAN_message_t msg;
-    while (CANbus.read(msg))
+    bool wasConnected = false;
+    elapsedMillis last_frame = CANBUS_TIMEOUT;
+    // bool initDone = false;
+    // uint8_t index = 0;
+
+    GlobalVars* pGV = (GlobalVars*)arg;
+
+    // Enable CAN transceiver
+    pinMode(23, OUTPUT);
+    digitalWrite(23, LOW);
+
+    // Start CAN driver
+    CANbus.begin();
+    CANbus.setBaudRate(500000);
+
+    int dir = 1;
+    int cpt = 0;
+
+    for (;;)
     {
-        if (msg.flags.extended ? rx_command(msg) : rx_broadcast(msg))
+        cpt += dir;
+        if (cpt == 80)
+            dir = -1;
+        else if (cpt == 0)
+            dir = 1;
+        pGV->ms.rpm = cpt * 100;
+        chThdSleepMilliseconds(100);
+    }
+    for (;;)
+    {
+        CAN_message_t msg;
+        while (CANbus.read(msg) == 0)
+        {
+            chThdSleepMicroseconds(100);
+        }
+        if (msg.flags.extended ? rx_command(msg, pGV) : rx_broadcast(msg, pGV))
         {
             last_frame = 0;
         }
-    }
 
-    GV.connected = (last_frame < CANBUS_TIMEOUT); // Timeout after 5s
-    if (wasConnected && !GV.connected)
-    {
-        // Connection lost, reset ms values to 0
-        for (int i = sizeof(GV.ms); i > 0; i--)
+        pGV->connected = (last_frame < CANBUS_TIMEOUT); // Timeout after 5s
+        if (wasConnected && !pGV->connected)
         {
-            ((uint8_t*)&GV.ms)[i] = 0;
+            // Connection lost, reset ms values to 0
+            for (int i = sizeof(pGV->ms); i > 0; i--)
+            {
+                ((uint8_t*)&pGV->ms)[i] = 0;
+            }
         }
-    }
-    wasConnected = GV.connected;
+        wasConnected = pGV->connected;
 
-    // Read ve table #2 content
-    if (GV.connected && !initDone && !requestPending)
-    {
-        send_request(0, 9, 256 + (index * 8), 8);
-        ++index;
-        initDone = index >= (256 / 8);
-        requestPending = true;
-        if (initDone)
-        {
-            Serial.println("done");
-        }
+        // Read ve table #2 content
+        // if (pGV->connected && !initDone && !requestPending)
+        // {
+        //     send_request(0, 9, 256 + (index * 8), 8);
+        //     ++index;
+        //     initDone = index >= (256 / 8);
+        //     requestPending = true;
+        //     if (initDone)
+        //     {
+        //         Serial.println("done");
+        //     }
+        // }
     }
 }
+
+void initThreads(tprio_t prio, void* arg)
+{
+    chThdCreateStatic(waThd, sizeof(waThd), prio, ThreadCanBus, arg);
+}
+size_t getUnusedStack()
+{
+    return chUnusedThreadStack(waThd, sizeof(waThd));
+}
+
 } // namespace CanBus

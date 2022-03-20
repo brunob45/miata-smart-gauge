@@ -4,6 +4,9 @@
 #include <lvgl.h>
 
 #include "accel.h"
+#include "canbus.h"
+#include "global.h"
+#include "miata.h"
 
 #define GET_UNUSED_STACK(wa) (chUnusedThreadStack(wa, sizeof(wa)))
 #define GET_USED_STACK(wa) (sizeof(wa) - GET_UNUSED_STACK(wa))
@@ -69,9 +72,6 @@ THD_FUNCTION(ThreadLVGL, arg)
     disp_drv.ver_res = 240;            /*Set the vertical resolution of the display*/
     lv_disp_drv_register(&disp_drv);   /*Finally register the driver*/
 
-    pinMode(6, OUTPUT);
-    digitalWrite(6, HIGH);
-
     chEvtSignal(pThdLabel, EVENT_MASK(0));
 
     for (;;)
@@ -92,10 +92,28 @@ THD_FUNCTION(ThreadTick, arg)
 
 THD_FUNCTION(ThreadLabel, arg)
 {
+    GlobalVars* pGV = (GlobalVars*)arg;
+
     pThdLabel = chThdGetSelfX();
     chEvtWaitAny(ALL_EVENTS);
 
     lv_obj_set_scrollbar_mode(lv_scr_act(), LV_SCROLLBAR_MODE_OFF);
+
+    {
+        // Show splash screen
+        lv_obj_t* img = lv_img_create(lv_scr_act());
+        lv_img_set_src(img, &splash_screen);
+        lv_obj_set_align(img, LV_ALIGN_TOP_LEFT);
+
+        chThdSleepMilliseconds(500);
+
+        pinMode(6, OUTPUT);
+        digitalWrite(6, HIGH);
+
+        chThdSleepMilliseconds(2000);
+
+        lv_obj_del_async(img);
+    }
 
     lv_style_t style_main;
     lv_style_init(&style_main);
@@ -138,36 +156,32 @@ THD_FUNCTION(ThreadLabel, arg)
 
     lv_chart_series_t* serie1 = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_LIME), LV_CHART_AXIS_PRIMARY_Y);
 
-    int dir = 1;
-    int cpt = 0;
-
     for (;;)
     {
-        uint16_t rpm = cpt * 100;
+        uint16_t rpm = pGV->ms.rpm;
 
-        lv_meter_set_indicator_value(meter, indic, cpt);
+        lv_meter_set_indicator_value(meter, indic, rpm / 100);
 
         lv_label_set_text_fmt(label_rpm, "%u", rpm);
 
-        lv_chart_set_next_value(chart, serie1, Accel::get().y * 100);
+        lv_chart_set_next_value(chart, serie1, pGV->accel.y * 100);
 
-        lv_label_set_text_fmt(label, "%u,%u,%u,%u",
+        lv_label_set_text_fmt(label, "%u,%u,%u,%u,%u",
                               GET_UNUSED_STACK(waThdLVGL),
                               GET_UNUSED_STACK(waThdTick),
                               GET_UNUSED_STACK(waThdLabel),
-                              Accel::getUnusedStack());
-        cpt += dir;
-        if (cpt == 80) dir = -1;
-        if (cpt == 0) dir = 1;
-        chThdSleepMilliseconds(100);
+                              Accel::getUnusedStack(),
+                              CanBus::getUnusedStack());
+
+        chThdSleepMilliseconds(50);
     }
 }
 } // namespace
 
-void initThreads(tprio_t prio)
+void initThreads(tprio_t prio, void* arg)
 {
-    chThdCreateStatic(waThdLabel, sizeof(waThdLabel), prio, ThreadLabel, NULL);
-    chThdCreateStatic(waThdLVGL, sizeof(waThdLVGL), prio + 20, ThreadLVGL, NULL);
-    chThdCreateStatic(waThdTick, sizeof(waThdTick), prio + 30, ThreadTick, NULL);
+    chThdCreateStatic(waThdLabel, sizeof(waThdLabel), prio, ThreadLabel, arg);
+    chThdCreateStatic(waThdLVGL, sizeof(waThdLVGL), prio + 20, ThreadLVGL, arg);
+    chThdCreateStatic(waThdTick, sizeof(waThdTick), prio + 30, ThreadTick, arg);
 }
 } // namespace Display

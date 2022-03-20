@@ -3,6 +3,8 @@
 #include <ILI9341_t3n.h>
 #include <lvgl.h>
 
+#include "accel.h"
+
 #define GET_UNUSED_STACK(wa) (chUnusedThreadStack(wa, sizeof(wa)))
 #define GET_USED_STACK(wa) (sizeof(wa) - GET_UNUSED_STACK(wa))
 
@@ -131,8 +133,8 @@ THD_FUNCTION(ThreadLabel, arg)
     lv_obj_add_style(chart, &style_chart, LV_PART_MAIN);
     lv_obj_align(chart, LV_ALIGN_LEFT_MID, 5, 0);
     lv_obj_set_size(chart, 145, 50);
-    lv_chart_set_range(chart, LV_CHART_AXIS_PRIMARY_Y, 0, 8000);
-    lv_chart_set_point_count(chart, 150);
+    lv_chart_set_range(chart, LV_CHART_AXIS_PRIMARY_Y, -100, 100);
+    lv_chart_set_point_count(chart, 145);
 
     lv_chart_series_t* serie1 = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_LIME), LV_CHART_AXIS_PRIMARY_Y);
 
@@ -147,7 +149,7 @@ THD_FUNCTION(ThreadLabel, arg)
 
         lv_label_set_text_fmt(label_rpm, "%u", rpm);
 
-        lv_chart_set_next_value(chart, serie1, rpm);
+        lv_chart_set_next_value(chart, serie1, Accel::get().y * 100);
 
         lv_label_set_text_fmt(label, "%u,%u,%u",
                               GET_UNUSED_STACK(waThdLVGL),
@@ -163,8 +165,8 @@ THD_FUNCTION(ThreadLabel, arg)
 
 void initThreads(tprio_t prio)
 {
-    chThdCreateStatic(waThdLabel, sizeof(waThdLabel), ++prio, ThreadLabel, NULL);
-    chThdCreateStatic(waThdLVGL, sizeof(waThdLVGL), ++prio, ThreadLVGL, NULL);
-    chThdCreateStatic(waThdTick, sizeof(waThdTick), ++prio, ThreadTick, NULL);
+    chThdCreateStatic(waThdLabel, sizeof(waThdLabel), prio, ThreadLabel, NULL);
+    chThdCreateStatic(waThdLVGL, sizeof(waThdLVGL), prio + 20, ThreadLVGL, NULL);
+    chThdCreateStatic(waThdTick, sizeof(waThdTick), prio + 30, ThreadTick, NULL);
 }
 } // namespace Display

@@ -1,11 +1,13 @@
 
 #include <Arduino.h>
 
+#include "accel.h"
 #include "display.h"
 
 void chSetup()
 {
-    Display::initThreads(NORMALPRIO);
+    Accel::initThreads(NORMALPRIO + 2);
+    Display::initThreads(NORMALPRIO + 1);
 }
 
 void setup()

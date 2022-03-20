@@ -1,7 +1,8 @@
-#if !defined(DASH_ACCEL_H)
-#define DASH_ACCEL_H
+#if !defined(ACCEL_H)
+#define ACCEL_H
 
 #include <Arduino.h>
+#include <ChRt.h>
 
 namespace Accel
 {
@@ -13,11 +14,9 @@ struct AccelValue
 
     float norm();
 };
-
-void init(void);
-void update(void);
-void print_debug(Print& p);
 AccelValue get();
+
+void initThreads(tprio_t prio = NORMALPRIO);
 } // namespace Accel
 
-#endif // DASH_ACCEL_H
+#endif // ACCEL_H

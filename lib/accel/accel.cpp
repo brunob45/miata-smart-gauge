@@ -9,11 +9,14 @@ namespace Accel
 {
 namespace
 {
+THD_WORKING_AREA(waThdAccel, 80 * 64);
+
 Adafruit_MSA301 msa;
 
 // filter constant = "refresh rate" / "signal lag" (in seconds)
 FilterClass fx(0.020f / 0.40f), fy(0.020f / 0.40f), fz(0.020f / 0.40f);
 FilterClass gx(0.020f / 10.0f), gy(0.020f / 10.0f), gz(0.020f / 10.0f);
+float ax, ay, az;
 } // namespace
 
 float AccelValue::norm()
@@ -24,7 +27,7 @@ float AccelValue::norm()
     return sqrtf(n);
 }
 
-void init(void)
+THD_FUNCTION(ThreadAccel, arg)
 {
     // Init MSA301
     msa.begin();
@@ -36,25 +39,25 @@ void init(void)
     gx.reset(msa.x_g);
     gy.reset(msa.y_g);
     gz.reset(msa.z_g);
+
+    for (;;)
+    {
+        // Update accel values
+        msa.read();
+
+        // Update gravity (low pass filter)
+        // Update accel (band pass filter)
+        ax = fx.put(msa.x_g) - gx.put(msa.x_g);
+        ay = fy.put(msa.y_g) - gy.put(msa.y_g);
+        az = fz.put(msa.z_g) - gz.put(msa.z_g);
+
+        chThdSleepMilliseconds(20);
+    }
 }
 
-void update(void)
+void initThreads(tprio_t prio)
 {
-    static elapsedMillis last_update;
-
-    if (last_update < 20)
-        return;
-
-    // Update accel values
-    msa.read();
-
-    // Update gravity (low pass filter)
-    // Update accel (band pass filter)
-    GV.accel.x = fx.put(msa.x_g) - gx.put(msa.x_g);
-    GV.accel.y = fy.put(msa.y_g) - gy.put(msa.y_g);
-    GV.accel.z = fz.put(msa.z_g) - gz.put(msa.z_g);
-
-    last_update = 0;
+    chThdCreateStatic(waThdAccel, sizeof(waThdAccel), prio, ThreadAccel, NULL);
 }
 
 void print_debug(Print& p)
@@ -185,7 +188,7 @@ void print_debug(Print& p)
 
 AccelValue get()
 {
-    return AccelValue{fx.get(), fy.get(), fz.get()};
+    return AccelValue{msa.x_g, msa.y_g, msa.z_g};
 }
 
 } // namespace Accel

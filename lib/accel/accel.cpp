@@ -9,7 +9,7 @@ namespace Accel
 {
 namespace
 {
-THD_WORKING_AREA(waThdAccel, 1 * 256);
+THD_WORKING_AREA(waThdAccel, 2 * 256);
 
 Adafruit_MSA301 msa;
 
@@ -58,6 +58,10 @@ THD_FUNCTION(ThreadAccel, arg)
 void initThreads(tprio_t prio)
 {
     chThdCreateStatic(waThdAccel, sizeof(waThdAccel), prio, ThreadAccel, NULL);
+}
+size_t getUnusedStack()
+{
+    return chUnusedThreadStack(waThdAccel, sizeof(waThdAccel));
 }
 
 void print_debug(Print& p)

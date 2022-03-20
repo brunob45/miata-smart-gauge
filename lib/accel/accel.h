@@ -17,6 +17,7 @@ struct AccelValue
 AccelValue get();
 
 void initThreads(tprio_t prio = NORMALPRIO);
+size_t getUnusedStack();
 } // namespace Accel
 
 #endif // ACCEL_H

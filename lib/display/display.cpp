@@ -151,10 +151,11 @@ THD_FUNCTION(ThreadLabel, arg)
 
         lv_chart_set_next_value(chart, serie1, Accel::get().y * 100);
 
-        lv_label_set_text_fmt(label, "%u,%u,%u",
+        lv_label_set_text_fmt(label, "%u,%u,%u,%u",
                               GET_UNUSED_STACK(waThdLVGL),
                               GET_UNUSED_STACK(waThdTick),
-                              GET_UNUSED_STACK(waThdLabel));
+                              GET_UNUSED_STACK(waThdLabel),
+                              Accel::getUnusedStack());
         cpt += dir;
         if (cpt == 80) dir = -1;
         if (cpt == 0) dir = 1;

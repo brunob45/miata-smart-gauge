@@ -102,7 +102,7 @@ THD_FUNCTION(ThreadLabel, arg)
     {
         // Show splash screen
         lv_obj_t* img = lv_img_create(lv_scr_act());
-        lv_img_set_src(img, &splash_screen);
+        lv_img_set_src(img, &miata);
         lv_obj_set_align(img, LV_ALIGN_TOP_LEFT);
 
         chThdSleepMilliseconds(500);

@@ -7,6 +7,7 @@
 #include "canbus.h"
 #include "global.h"
 #include "miata.h"
+#include "warning.h"
 
 #define GET_UNUSED_STACK(wa) (chUnusedThreadStack(wa, sizeof(wa)))
 #define GET_USED_STACK(wa) (sizeof(wa) - GET_UNUSED_STACK(wa))
@@ -127,6 +128,11 @@ THD_FUNCTION(ThreadLabel, arg)
     lv_style_set_border_color(&style_chart, lv_color_white());
     lv_style_set_border_width(&style_chart, 1);
 
+    lv_obj_t* img = lv_img_create(lv_scr_act());
+    lv_img_set_src(img, &warning);
+    lv_obj_set_align(img, LV_ALIGN_BOTTOM_RIGHT);
+    lv_obj_add_flag(img, LV_OBJ_FLAG_HIDDEN);
+
     lv_obj_t* label = lv_label_create(lv_scr_act());
     lv_obj_set_align(label, LV_ALIGN_TOP_LEFT);
 
@@ -156,6 +162,8 @@ THD_FUNCTION(ThreadLabel, arg)
 
     lv_chart_series_t* serie1 = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_LIME), LV_CHART_AXIS_PRIMARY_Y);
 
+    bool alert = false;
+
     for (;;)
     {
         uint16_t rpm = pGV->ms.rpm;
@@ -165,6 +173,11 @@ THD_FUNCTION(ThreadLabel, arg)
         lv_label_set_text_fmt(label_rpm, "%u", rpm);
 
         lv_chart_set_next_value(chart, serie1, pGV->accel.y * 100);
+
+        bool new_alert = false;// rpm > 7000;
+        if (new_alert && !alert) lv_obj_clear_flag(img, LV_OBJ_FLAG_HIDDEN);
+        else if (!new_alert && alert) lv_obj_add_flag(img, LV_OBJ_FLAG_HIDDEN);
+        alert = new_alert;
 
         lv_label_set_text_fmt(label, "%u,%u,%u,%u,%u",
                               GET_UNUSED_STACK(waThdLVGL),

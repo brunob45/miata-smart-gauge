@@ -1,13 +1,13 @@
 #ifndef DASH_SPEEDO_H
 #define DASH_SPEEDO_H
 
-#include <stdint.h>
+#include <Arduino.h>
+#include <ChRt.h>
 
 namespace Speedo
 {
-void init();
-void update();
-uint16_t get_value();
+void initThreads(tprio_t prio, void* arg);
+size_t getUnusedStack();
 } // namespace Speedo
 
 #endif // DASH_SPEEDO_H

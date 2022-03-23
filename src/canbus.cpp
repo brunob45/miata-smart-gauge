@@ -324,13 +324,12 @@ THD_FUNCTION(ThreadCanBus, arg)
     for (;;)
     {
         CAN_message_t msg;
-        while (CANbus.read(msg) == 0)
+        while (CANbus.read(msg) > 0)
         {
-            chThdSleepMicroseconds(100);
-        }
-        if (msg.flags.extended ? rx_command(msg, pGV) : rx_broadcast(msg, pGV))
-        {
-            last_frame = 0;
+            if (msg.flags.extended ? rx_command(msg, pGV) : rx_broadcast(msg, pGV))
+            {
+                last_frame = 0;
+            }
         }
 
         pGV->connected = (last_frame < CANBUS_TIMEOUT); // Timeout after 5s
@@ -356,6 +355,8 @@ THD_FUNCTION(ThreadCanBus, arg)
         //         Serial.println("done");
         //     }
         // }
+
+        chThdSleepMilliseconds(1);
     }
 }
 

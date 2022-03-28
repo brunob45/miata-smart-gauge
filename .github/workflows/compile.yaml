@@ -1,6 +1,6 @@
 name: PlatformIO Run
 
-on: [pull_request, repository_dispatch]
+on: [pull_request, push, repository_dispatch]
 
 jobs:
   build:

@@ -9,18 +9,17 @@ namespace Accel
 {
 namespace
 {
-THD_WORKING_AREA(waThdAccel, 2 * 256);
-
-Adafruit_MSA301 msa;
-
-// filter constant = "refresh rate" / "signal lag" (in seconds)
-FilterClass fx(0.020f / 0.40f), fy(0.020f / 0.40f), fz(0.020f / 0.40f);
-FilterClass gx(0.020f / 10.0f), gy(0.020f / 10.0f), gz(0.020f / 10.0f);
-} // namespace
+THD_WORKING_AREA(waThdAccel, 3 * 256);
 
 THD_FUNCTION(ThreadAccel, arg)
 {
     GlobalVars* pGV = (GlobalVars*)arg;
+
+    Adafruit_MSA301 msa;
+
+    // filter constant = "refresh rate" / "signal lag" (in seconds)
+    FilterClass fx(0.020f / 0.40f), fy(0.020f / 0.40f), fz(0.020f / 0.40f);
+    FilterClass gx(0.020f / 10.0f), gy(0.020f / 10.0f), gz(0.020f / 10.0f);
 
     // Init MSA301
     msa.begin();
@@ -43,15 +42,16 @@ THD_FUNCTION(ThreadAccel, arg)
         // pGV->accel.x = fx.put(msa.x_g) - gx.put(msa.x_g);
         // pGV->accel.y = fy.put(msa.y_g) - gy.put(msa.y_g);
         // pGV->accel.z = fz.put(msa.z_g) - gz.put(msa.z_g);
-        pGV->accel.x = msa.x_g;
-        pGV->accel.y = msa.y_g;
-        pGV->accel.z = msa.z_g;
+        pGV->accel.x = (msa.x + 45) / 2048.0f;
+        pGV->accel.y = (msa.y + 0) / 2048.0f;
+        pGV->accel.z = (msa.z + 180) / 2048.0f;
 
+        pGV->accel.stack = chUnusedThreadStack(waThdAccel, sizeof(waThdAccel));
         chThdSleepMilliseconds(20);
     }
 }
 
-void print_debug(Print& p)
+void print_debug(Adafruit_MSA301& msa, Print& p)
 {
     // a.setDataRate(MSA301_DATARATE_125_HZ);
     p.print("Data rate set to: ");
@@ -92,7 +92,7 @@ void print_debug(Print& p)
         break;
     }
 
-    //a.setPowerMode(MSA301_SUSPENDMODE);
+    // a.setPowerMode(MSA301_SUSPENDMODE);
     p.print("Power mode set to: ");
     switch (msa.getPowerMode())
     {
@@ -107,7 +107,7 @@ void print_debug(Print& p)
         break;
     }
 
-    //a.setBandwidth(MSA301_BANDWIDTH_31_25_HZ);
+    // a.setBandwidth(MSA301_BANDWIDTH_31_25_HZ);
     p.print("Bandwidth set to: ");
     switch (msa.getBandwidth())
     {
@@ -140,7 +140,7 @@ void print_debug(Print& p)
         break;
     }
 
-    //a.setRange(MSA301_RANGE_2_G);
+    // a.setRange(MSA301_RANGE_2_G);
     p.print("Range set to: ");
     switch (msa.getRange())
     {
@@ -158,7 +158,7 @@ void print_debug(Print& p)
         break;
     }
 
-    //a.setResolution(MSA301_RESOLUTION_14 );
+    // a.setResolution(MSA301_RESOLUTION_14 );
     p.print("Resolution set to: ");
     switch (msa.getResolution())
     {
@@ -176,13 +176,10 @@ void print_debug(Print& p)
         break;
     }
 }
+} // namespace
 
 void initThreads(tprio_t prio, void* arg)
 {
     chThdCreateStatic(waThdAccel, sizeof(waThdAccel), prio, ThreadAccel, arg);
-}
-size_t getUnusedStack()
-{
-    return chUnusedThreadStack(waThdAccel, sizeof(waThdAccel));
 }
 } // namespace Accel

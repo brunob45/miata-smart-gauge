@@ -25,6 +25,7 @@ struct GlobalVars
         int16_t sensors1;
         int16_t sensors2;
         int16_t knk_rtd;
+        size_t stack;
     } ms;
 
     struct
@@ -32,6 +33,7 @@ struct GlobalVars
         float x;
         float y;
         float z;
+        size_t stack;
     } accel;
 
     struct
@@ -40,6 +42,15 @@ struct GlobalVars
         uint16_t fmap[16];
         uint8_t values[16 * 16];
     } ftrim;
+
+    struct
+    {
+        bool fix;
+        float spd;
+        float dir;
+        uint16_t tod;
+        size_t stack;
+    } gps;
 
     bool alert;
     uint8_t gear;

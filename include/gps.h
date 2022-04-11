@@ -1,12 +1,12 @@
-#ifndef DASH_CANBUS
-#define DASH_CANBUS
+#ifndef GPS_H
+#define GPS_H
 
 #include <Arduino.h>
 #include <ChRt.h>
 
-namespace CanBus
+namespace GPS
 {
 void initThreads(tprio_t prio = NORMALPRIO, void* arg = NULL);
-} // namespace CanBus
+}
 
-#endif // DASH_CANBUS
+#endif // GPS_H

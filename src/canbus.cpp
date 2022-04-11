@@ -319,6 +319,7 @@ THD_FUNCTION(ThreadCanBus, arg)
         else if (cpt == 0)
             dir = 1;
         pGV->ms.rpm = cpt * 100;
+        pGV->ms.stack = chUnusedThreadStack(waThd, sizeof(waThd));
         chThdSleepMilliseconds(100);
     }
     for (;;)
@@ -356,6 +357,7 @@ THD_FUNCTION(ThreadCanBus, arg)
         //     }
         // }
 
+        pGV->ms.stack = chUnusedThreadStack(waThd, sizeof(waThd));
         chThdSleepMilliseconds(1);
     }
 }
@@ -363,10 +365,6 @@ THD_FUNCTION(ThreadCanBus, arg)
 void initThreads(tprio_t prio, void* arg)
 {
     chThdCreateStatic(waThd, sizeof(waThd), prio, ThreadCanBus, arg);
-}
-size_t getUnusedStack()
-{
-    return chUnusedThreadStack(waThd, sizeof(waThd));
 }
 
 } // namespace CanBus

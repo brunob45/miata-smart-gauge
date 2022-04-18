@@ -13,4 +13,4 @@ printf "
 #ifndef GIT_SHA
 #define GIT_SHA \"${version}\"
 #endif
-">lib/git_sha/git_sha.h
+">include/git_sha.h

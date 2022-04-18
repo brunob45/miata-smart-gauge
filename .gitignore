@@ -1,4 +1,4 @@
 .pio/
 .vscode/
 debug.log
-lib/git_sha/
+include/git_sha.h

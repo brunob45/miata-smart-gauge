@@ -295,8 +295,6 @@ THD_FUNCTION(ThreadCanBus, arg)
 {
     bool wasConnected = false;
     elapsedMillis last_frame = CANBUS_TIMEOUT;
-    // bool initDone = false;
-    // uint8_t index = 0;
 
     GlobalVars* pGV = (GlobalVars*)arg;
 
@@ -308,20 +306,6 @@ THD_FUNCTION(ThreadCanBus, arg)
     CANbus.begin();
     CANbus.setBaudRate(500000);
 
-    int dir = 1;
-    int cpt = 0;
-
-    for (;;)
-    {
-        cpt += dir;
-        if (cpt == 80)
-            dir = -1;
-        else if (cpt == 0)
-            dir = 1;
-        pGV->ms.rpm = cpt * 100;
-        pGV->ms.stack = chUnusedThreadStack(waThd, sizeof(waThd));
-        chThdSleepMilliseconds(100);
-    }
     for (;;)
     {
         CAN_message_t msg;

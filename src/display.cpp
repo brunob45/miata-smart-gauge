@@ -5,7 +5,6 @@
 
 #include "global.h"
 #include "miata.h"
-//#include "body.h"
 
 #define GET_UNUSED_STACK(wa) (chUnusedThreadStack(wa, sizeof(wa)))
 #define GET_USED_STACK(wa) (sizeof(wa) - GET_UNUSED_STACK(wa))
@@ -89,6 +88,43 @@ THD_FUNCTION(ThreadTick, arg)
     }
 }
 
+struct gauge_t
+{
+    lv_obj_t* meter;
+    lv_meter_scale_t* scale;
+    lv_meter_indicator_t* indic;
+    lv_obj_t* label;
+};
+
+void gauge_create(gauge_t* myGauge)
+{
+    // meter
+    lv_obj_t* meter = myGauge->meter = lv_meter_create(lv_scr_act());
+    lv_obj_remove_style(meter, NULL, LV_PART_MAIN);
+    lv_obj_set_pos(meter, 160, 20);
+    lv_obj_set_size(meter, 220, 220);
+
+    // meter scale
+    lv_meter_scale_t* scale = myGauge->scale = lv_meter_add_scale(meter);
+    const int rot = 110;
+    lv_meter_set_scale_range(meter, scale, 0, 80, (270 - rot) * 8 / 7, rot);
+    lv_meter_set_scale_ticks(meter, scale, 8 * 4 + 1, 2, 10, lv_palette_main(LV_PALETTE_LIME));
+    lv_meter_set_scale_major_ticks(meter, scale, 4, 4, 15, lv_color_white(), 15);
+
+    // meter needle
+    myGauge->indic = lv_meter_add_needle_line(meter, scale, 4, lv_palette_main(LV_PALETTE_LIME), -10);
+
+    // label
+    lv_obj_t* label = myGauge->label = lv_label_create(lv_scr_act());
+    lv_obj_align(label, LV_ALIGN_BOTTOM_RIGHT, -20, 0);
+}
+
+void gauge_update(gauge_t* myGauge, uint16_t new_value)
+{
+    lv_meter_set_indicator_value(myGauge->meter, myGauge->indic, (new_value + 50) / 100);
+    lv_label_set_text_fmt(myGauge->label, "%u", new_value);
+}
+
 THD_FUNCTION(ThreadLabel, arg)
 {
     GlobalVars* pGV = (GlobalVars*)arg;
@@ -132,26 +168,8 @@ THD_FUNCTION(ThreadLabel, arg)
     lv_obj_t* label = lv_label_create(lv_scr_act());
     lv_obj_set_align(label, LV_ALIGN_TOP_LEFT);
 
-    // rpm meter
-    lv_obj_t* meter = lv_meter_create(lv_scr_act());
-    lv_obj_remove_style(meter, NULL, LV_PART_MAIN);
-    lv_obj_set_pos(meter, 160, 20);
-    lv_obj_set_size(meter, 220, 220);
-
-    // rpm meter scale
-    lv_meter_scale_t* scale = lv_meter_add_scale(meter);
-    const int rot = 110;
-    lv_meter_set_scale_range(meter, scale, 0, 80, (270 - rot) * 8 / 7, rot);
-    lv_meter_set_scale_ticks(meter, scale, 8 * 4 + 1, 2, 10, lv_palette_main(LV_PALETTE_LIME));
-    lv_meter_set_scale_major_ticks(meter, scale, 4, 4, 15, lv_color_white(), 15);
-
-    // rpm meter needle
-    lv_meter_indicator_t* indic = lv_meter_add_needle_line(meter, scale, 4, lv_palette_main(LV_PALETTE_LIME), -10);
-
-    // rpm label
-    lv_obj_t* label_rpm = lv_label_create(lv_scr_act());
-    lv_obj_align(label_rpm, LV_ALIGN_BOTTOM_RIGHT, -20, 0);
-
+    gauge_t gauge_rpm;
+    gauge_create(&gauge_rpm);
 
     // afr chart style
     lv_style_t style_chart;
@@ -165,7 +183,7 @@ THD_FUNCTION(ThreadLabel, arg)
     lv_obj_add_style(chart, &style_chart, LV_PART_MAIN);
     lv_obj_align(chart, LV_ALIGN_LEFT_MID, 5, 0);
     lv_obj_set_size(chart, 145, 50);
-    lv_chart_set_range(chart, LV_CHART_AXIS_PRIMARY_Y, -100, 100);
+    lv_chart_set_range(chart, LV_CHART_AXIS_PRIMARY_Y, 127, 167);
     lv_chart_set_point_count(chart, 160);
 
     // afr chart data
@@ -216,15 +234,11 @@ THD_FUNCTION(ThreadLabel, arg)
 
     for (;;)
     {
-        uint16_t rpm = pGV->ms.rpm;
+        gauge_update(&gauge_rpm, pGV->ms.rpm);
 
-        lv_meter_set_indicator_value(meter, indic, rpm / 100);
+        lv_chart_set_next_value(chart, ser1, pGV->ms.afr * 10);
 
-        lv_label_set_text_fmt(label_rpm, "%u", rpm);
-
-        lv_chart_set_next_value(chart, ser1, pGV->accel.y * 100);
-
-        lv_chart_set_next_value2(accel_chart, accel_serie1, pGV->accel.x * 100, pGV->accel.y * 100);
+        lv_chart_set_next_value2(accel_chart, accel_serie1, pGV->accel.x * 100, pGV->accel.z * 100);
 
         // bool new_alert =  rpm > 7000;
         // if (new_alert && !alert) lv_obj_clear_flag(img, LV_OBJ_FLAG_HIDDEN);

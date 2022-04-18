@@ -66,9 +66,4 @@ void initThreads(tprio_t prio, void* arg)
 {
     chThdCreateStatic(waThd, sizeof(waThd), prio, ThreadSpeedo, arg);
 }
-size_t getUnusedStack()
-{
-    return chUnusedThreadStack(waThd, sizeof(waThd));
-}
-
 } // namespace Speedo

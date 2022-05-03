@@ -238,9 +238,9 @@ THD_FUNCTION(ThreadLabel, arg)
     {
         gauge_update(&gauge_rpm, pGV->ms.rpm);
 
-        lv_chart_set_next_value(chart, ser1, pGV->ms.afr * 10);
+        lv_chart_set_next_value(chart, ser1, pGV->ms.afr);
 
-        lv_chart_set_next_value2(accel_chart, accel_serie1, pGV->accel.x * 100, pGV->accel.z * 100);
+        lv_chart_set_next_value2(accel_chart, accel_serie1, pGV->accel.x * 100, pGV->accel.z * -100);
 
         // bool new_alert =  rpm > 7000;
         // if (new_alert && !alert) lv_obj_clear_flag(img, LV_OBJ_FLAG_HIDDEN);
@@ -253,7 +253,7 @@ THD_FUNCTION(ThreadLabel, arg)
                               GET_UNUSED_STACK(waThdLabel),
                               pGV->accel.stack,
                               pGV->ms.stack,
-                              pGV->gps.stack);
+                              int(pGV->accel.angle * RAD_TO_DEG));
 
         chThdSleepMilliseconds(50);
     }

@@ -54,6 +54,7 @@ struct GlobalVars
         float x;
         float y;
         float z;
+        float angle;
         size_t stack;
     } accel;
 

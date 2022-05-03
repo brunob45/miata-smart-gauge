@@ -19,7 +19,7 @@ THD_FUNCTION(ThreadAccel, arg)
 
     // filter constant = "refresh rate" / "signal lag" (in seconds)
     FilterClass fx(0.020f / 0.40f), fy(0.020f / 0.40f), fz(0.020f / 0.40f);
-    FilterClass gx(0.020f / 10.0f), gy(0.020f / 10.0f), gz(0.020f / 10.0f);
+    FilterClass fa(0.020f / 10.0f);
 
     // Init MSA301
     msa.begin();
@@ -28,23 +28,31 @@ THD_FUNCTION(ThreadAccel, arg)
     msa.read();
 
     // Init filters to first reading
-    gx.reset(msa.x_g);
-    gy.reset(msa.y_g);
-    gz.reset(msa.z_g);
+    if (abs(msa.y_g) > 0.001f)
+    {
+        fa.reset(atanf(msa.z_g / msa.y_g));
+    }
 
     for (;;)
     {
         // Update accel values
         msa.read();
 
-        // Update gravity (low pass filter)
-        // Update accel (band pass filter)
-        // pGV->accel.x = fx.put(msa.x_g) - gx.put(msa.x_g);
-        // pGV->accel.y = fy.put(msa.y_g) - gy.put(msa.y_g);
-        // pGV->accel.z = fz.put(msa.z_g) - gz.put(msa.z_g);
-        pGV->accel.x = (msa.x + 45) / 2048.0f;
-        pGV->accel.y = (msa.y + 0) / 2048.0f;
-        pGV->accel.z = (msa.z + 180) / 2048.0f;
+        float x = (msa.x + 45) / 2048.0f;
+        float y = (msa.y + 0) / 2048.0f;
+        float z = (msa.z + 180) / 2048.0f;
+
+        if (abs(y) > 0.001f)
+        {
+            pGV->accel.angle = fa.put(atanf(z / y));
+        }
+
+        float _cos = cosf(fa.get());
+        float _sin = sinf(fa.get());
+
+        pGV->accel.x = x;
+        pGV->accel.y = y; //_cos * y - _sin * z;
+        pGV->accel.z = z; //_sin * y + _cos * z;
 
         pGV->accel.stack = chUnusedThreadStack(waThdAccel, sizeof(waThdAccel));
         chThdSleepMilliseconds(20);

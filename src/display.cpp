@@ -72,19 +72,21 @@ THD_FUNCTION(ThreadLVGL, arg)
 
     chEvtSignal(pThdLabel, EVENT_MASK(0));
 
+    PeriodicTimer pt;
     for (;;)
     {
         lv_timer_handler();
-        chThdSleepMilliseconds(20);
+        pt.sleep(20);
     }
 }
 
 THD_FUNCTION(ThreadTick, arg)
 {
+    PeriodicTimer pt;
     for (;;)
     {
         lv_tick_inc(1);
-        chThdSleepMilliseconds(1);
+        pt.sleep(1);
     }
 }
 
@@ -166,7 +168,7 @@ THD_FUNCTION(ThreadLabel, arg)
 
     // info label (used to show stack usage)
     lv_obj_t* label = lv_label_create(lv_scr_act());
-    lv_obj_set_align(label, LV_ALIGN_TOP_LEFT);
+    lv_obj_set_align(label, LV_ALIGN_TOP_RIGHT);
 
     gauge_t gauge_rpm;
     gauge_create(&gauge_rpm);

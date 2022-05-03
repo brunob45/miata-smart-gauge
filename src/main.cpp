@@ -12,9 +12,9 @@ static GlobalVars GV;
 
 void chSetup()
 {
-    Speedo::initThreads(NORMALPRIO + 5, (void*)&GV); // 50ms
+//    Speedo::initThreads(NORMALPRIO + 5, (void*)&GV); // 50ms
     Accel::initThreads(NORMALPRIO + 4, (void*)&GV);  // 20ms
-    GPS::initThreads(NORMALPRIO + 3, (void*)&GV);    // 20ms
+//    GPS::initThreads(NORMALPRIO + 3, (void*)&GV);    // 20ms
 
     CanBus::initThreads(NORMALPRIO + 2, (void*)&GV); // 1ms
 

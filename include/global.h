@@ -1,6 +1,27 @@
 #if !defined(DASH_GLOBAL_H)
 #define DASH_GLOBAL_H
 
+class PeriodicTimer
+{
+    systime_t prev;
+
+public:
+    PeriodicTimer()
+    {
+        init();
+    }
+
+    void init()
+    {
+        prev = chVTGetSystemTime();
+    }
+
+    void sleep(uint ms)
+    {
+        prev = chThdSleepUntilWindowed(prev, chTimeAddX(prev, TIME_MS2I(ms)));
+    }
+};
+
 struct GlobalVars
 {
     struct

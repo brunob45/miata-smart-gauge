@@ -2,12 +2,17 @@
 
 import subprocess
 
+
+def run_cmd(cmd):
+    return subprocess.run(cmd, capture_output=True, shell=True, text=True)
+
+
 # get latest commit hash
-result = subprocess.run('git rev-parse --short HEAD', capture_output=True, text=True)
+result = run_cmd('git rev-parse --short HEAD')
 version = result.stdout.strip()
 
 # check if the workspace is dirty
-result = subprocess.run('git diff --quiet', capture_output=True)
+result = run_cmd('git diff --quiet')
 if result.returncode > 0:
     #workspace is dirty
     version += '*'

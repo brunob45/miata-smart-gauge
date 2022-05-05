@@ -11,6 +11,17 @@ namespace
 {
 THD_WORKING_AREA(waThdAccel, 3 * 256);
 
+void accelUpdate(Adafruit_MSA301* msa)
+{
+    if (msa)
+    {
+        msa->read();
+        msa->x_g = (msa->x + 45) / 2048.0f;
+        msa->y_g = (msa->y + 0) / 2048.0f;
+        msa->z_g = (msa->z + 180) / 2048.0f;
+    }
+}
+
 THD_FUNCTION(ThreadAccel, arg)
 {
     GlobalVars* pGV = (GlobalVars*)arg;
@@ -25,22 +36,26 @@ THD_FUNCTION(ThreadAccel, arg)
     msa.begin();
 
     // Read accel values
-    msa.read();
+    accelUpdate(&msa);
 
     // Init filters to first reading
     if (abs(msa.y_g) > 0.001f)
     {
         fa.reset(atanf(msa.z_g / msa.y_g));
     }
+    else
+    {
+        fa.reset(15 * DEG_TO_RAD);
+    }
 
     for (;;)
     {
         // Update accel values
-        msa.read();
+        accelUpdate(&msa);
 
-        float x = (msa.x + 45) / 2048.0f;
-        float y = (msa.y + 0) / 2048.0f;
-        float z = (msa.z + 180) / 2048.0f;
+        float x = fx.put(msa.x_g);
+        float y = fy.put(msa.y_g);
+        float z = fz.put(msa.z_g);
 
         if (abs(y) > 0.001f)
         {
@@ -51,8 +66,8 @@ THD_FUNCTION(ThreadAccel, arg)
         float _sin = sinf(fa.get());
 
         pGV->accel.x = x;
-        pGV->accel.y = y; //_cos * y - _sin * z;
-        pGV->accel.z = z; //_sin * y + _cos * z;
+        pGV->accel.y = _sin * z + _cos * y;
+        pGV->accel.z = _cos * z - _sin * y;
 
         pGV->accel.stack = chUnusedThreadStack(waThdAccel, sizeof(waThdAccel));
         chThdSleepMilliseconds(20);

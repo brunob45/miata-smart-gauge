@@ -1,9 +1,6 @@
 
 #include <Arduino.h>
-
-#define COMM_SRC_NONE 0
-#define COMM_SRC_LOCAL 1
-#define COMM_SRC_USB 2
+#include <ChRt.h>
 
 #include "accel.h"
 #include "canbus.h"
@@ -13,39 +10,6 @@
 #include "speedo.h"
 
 GlobalVars GV;
-
-IntervalTimer commTimer;
-volatile int last_index;
-CurrentStatus cs;
-uint8_t comm_source = COMM_SRC_NONE;
-uint16_t comm_index = 0;
-
-// static void update_comms(void);
-
-void setup()
-{
-    if (ARM_DWT_CYCCNT == ARM_DWT_CYCCNT)
-    {
-        // Enable CPU Cycle Count
-        // https://forum.pjrc.com/threads/58321-micros()-within-Interrupt-possible?p=220956&viewfull=1#post220956
-        ARM_DEMCR |= ARM_DEMCR_TRCENA;
-        ARM_DWT_CTRL |= ARM_DWT_CTRL_CYCCNTENA;
-    }
-
-    pinMode(6, OUTPUT);
-    digitalWrite(6, LOW);
-    pinMode(A6, INPUT);
-
-    Serial.begin(115200);
-
-    Accel::init();
-    Speedo::init();
-    CanBus::init();
-    Display::init();
-
-    // commTimer.begin(update_comms, 1000); // 64 bytes @ 115200 baud is 4.44ms, so a check every 1ms is sufficient
-    // last_index = 0;
-}
 
 void checkFault(uint16_t* code, uint8_t index, bool set, bool reset)
 {
@@ -63,40 +27,74 @@ void checkFault(uint16_t* code, uint8_t index, bool set, bool reset)
     }
 }
 
+THD_WORKING_AREA(waThdMain, 4 * 256);
+THD_FUNCTION(ThreadMain, arg)
+{
+    pinMode(6, OUTPUT);
+    digitalWrite(6, LOW);
+    pinMode(A6, INPUT);
+
+    Serial.begin(115200);
+
+    Accel::init();
+    Speedo::init();
+    CanBus::init();
+    Display::init();
+
+    uint16_t last_fault = 0;
+    uint32_t last_fault_change = 0;
+
+    for (;;)
+    {
+        Accel::update();
+        Speedo::update();
+        CanBus::update();
+
+        GV.alert = GV.ms.rpm > 7200;
+
+        GV.lumi = analogRead(A6);
+        if (Display::isReady())
+        {
+            analogWrite(6, (GV.lumi > 512) ? 30 : 255);
+        }
+
+        if (millis() - last_fault_change > 500)
+        {
+            // High coolant temperature
+            checkFault(&GV.fault_code, 0, GV.ms.clt > 2120, GV.ms.clt <= 2000); // 100C & 93C
+
+            // Low oil pressure
+            checkFault(&GV.fault_code, 1, GV.ms.sensors2 > 150, GV.ms.sensors2 < 140);
+
+            // Engine off
+            checkFault(&GV.fault_code, 2, GV.ms.rpm < 50, GV.ms.rpm > 200);
+
+            if (last_fault != GV.fault_code)
+            {
+                last_fault_change = millis();
+                last_fault = GV.fault_code;
+            }
+            Serial.println(chUnusedThreadStack(waThdMain, sizeof(waThdMain)));
+        }
+
+        Display::update();
+    }
+}
+
+void chSetup()
+{
+    chThdCreateStatic(waThdMain, sizeof(waThdMain), NORMALPRIO, ThreadMain, NULL);
+}
+
+void setup()
+{
+    chBegin(chSetup);
+}
+
 void loop(void)
 {
-    static uint16_t last_fault = 0;
-    static uint32_t last_fault_change = 0;
-
-    Accel::update();
-    Speedo::update();
-    CanBus::update();
-
-    GV.alert = GV.ms.rpm > 7200;
-
-    GV.lumi = analogRead(A6);
-    if (Display::isReady())
-    {
-        analogWrite(6, (GV.lumi > 512) ? 30 : 255);
-    }
-
-    if (millis() - last_fault_change > 500)
-    {
-        // High coolant temperature
-        checkFault(&GV.fault_code, 0, GV.ms.clt > 2120, GV.ms.clt <= 2000); // 100C & 93C
-
-        // Low oil pressure
-        checkFault(&GV.fault_code, 1, GV.ms.sensors2 > 150, GV.ms.sensors2 < 140);
-
-        // Engine off
-        checkFault(&GV.fault_code, 2, GV.ms.rpm<50, GV.ms.rpm> 200);
-
-        if (last_fault != GV.fault_code)
-        {
-            last_fault_change = millis();
-            last_fault = GV.fault_code;
-        }
-    }
-
-    Display::update();
+    digitalWrite(LED_BUILTIN, LOW);
+    delay(500);
+    digitalWrite(LED_BUILTIN, HIGH);
+    delay(500);
 }

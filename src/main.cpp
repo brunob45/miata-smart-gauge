@@ -76,16 +76,16 @@ THD_FUNCTION(ThreadMain, arg)
                 last_fault_change = millis();
                 last_fault = pGV->fault_code;
             }
-            Serial.println(chUnusedThreadStack(waThdMain, sizeof(waThdMain)));
         }
 
         Display::update();
+        pGV->waSize = chUnusedThreadStack(waThdMain, sizeof(waThdMain));
     }
 }
 
 void chSetup()
 {
-    chThdCreateStatic(waThdMain, sizeof(waThdMain), NORMALPRIO, ThreadMain, &GV);
+    chThdCreateStatic(waThdMain, sizeof(waThdMain), NORMALPRIO+1, ThreadMain, &GV);
 }
 
 void setup()

@@ -1,6 +1,7 @@
 #include "display.h"
 
 #include "git_sha.h"
+#include "global.h"
 #include "miata.h"
 #include "point.h"
 
@@ -110,6 +111,10 @@ void update(void)
         tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
 
         size_t line_len = tft.print(last_delta);
+        while (line_len < 3)
+        {
+            line_len += tft.print(' ');
+        }
         line_len += tft.print("ms, ");
 
         uint32_t seconds = now / 1000;
@@ -118,7 +123,7 @@ void update(void)
             uint16_t hours = seconds / 3600;
             seconds = seconds % 3600;
             line_len += tft.print(hours);
-            line_len += tft.print("h");
+            line_len += tft.print('h');
             if (seconds < 600)
             {
                 line_len += tft.print(' ');
@@ -129,14 +134,15 @@ void update(void)
             uint16_t minutes = seconds / 60;
             seconds = seconds % 60;
             line_len += tft.print(minutes);
-            line_len += tft.print("m");
+            line_len += tft.print('m');
             if (seconds < 10)
             {
                 line_len += tft.print(' ');
             }
         }
         line_len += tft.print(seconds);
-        line_len += tft.print("s");
+        line_len += tft.print("s ");
+        line_len += tft.print(GV.waSize);
 
         // clear line
         line_max = max(line_max, line_len);

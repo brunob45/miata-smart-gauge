@@ -30,6 +30,8 @@ void checkFault(uint16_t* code, uint8_t index, bool set, bool reset)
 THD_WORKING_AREA(waThdMain, 4 * 256);
 THD_FUNCTION(ThreadMain, arg)
 {
+    GlobalVars* pGV = (GlobalVars*)arg;
+
     pinMode(6, OUTPUT);
     digitalWrite(6, LOW);
     pinMode(A6, INPUT);
@@ -50,29 +52,29 @@ THD_FUNCTION(ThreadMain, arg)
         Speedo::update();
         CanBus::update();
 
-        GV.alert = GV.ms.rpm > 7200;
+        pGV->alert = pGV->ms.rpm > 7200;
 
-        GV.lumi = analogRead(A6);
+        pGV->lumi = analogRead(A6);
         if (Display::isReady())
         {
-            analogWrite(6, (GV.lumi > 512) ? 30 : 255);
+            analogWrite(6, (pGV->lumi > 512) ? 30 : 255);
         }
 
         if (millis() - last_fault_change > 500)
         {
             // High coolant temperature
-            checkFault(&GV.fault_code, 0, GV.ms.clt > 2120, GV.ms.clt <= 2000); // 100C & 93C
+            checkFault(&pGV->fault_code, 0, pGV->ms.clt > 2120, pGV->ms.clt <= 2000); // 100C & 93C
 
             // Low oil pressure
-            checkFault(&GV.fault_code, 1, GV.ms.sensors2 > 150, GV.ms.sensors2 < 140);
+            checkFault(&pGV->fault_code, 1, pGV->ms.sensors2 > 150, pGV->ms.sensors2 < 140);
 
             // Engine off
-            checkFault(&GV.fault_code, 2, GV.ms.rpm < 50, GV.ms.rpm > 200);
+            checkFault(&pGV->fault_code, 2, pGV->ms.rpm < 50, pGV->ms.rpm > 200);
 
-            if (last_fault != GV.fault_code)
+            if (last_fault != pGV->fault_code)
             {
                 last_fault_change = millis();
-                last_fault = GV.fault_code;
+                last_fault = pGV->fault_code;
             }
             Serial.println(chUnusedThreadStack(waThdMain, sizeof(waThdMain)));
         }
@@ -83,7 +85,7 @@ THD_FUNCTION(ThreadMain, arg)
 
 void chSetup()
 {
-    chThdCreateStatic(waThdMain, sizeof(waThdMain), NORMALPRIO, ThreadMain, NULL);
+    chThdCreateStatic(waThdMain, sizeof(waThdMain), NORMALPRIO, ThreadMain, &GV);
 }
 
 void setup()

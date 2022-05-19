@@ -38,7 +38,6 @@ THD_FUNCTION(ThreadMain, arg)
 
     Serial.begin(115200);
 
-    Accel::init();
     Speedo::init();
     CanBus::init();
     Display::init();
@@ -48,7 +47,6 @@ THD_FUNCTION(ThreadMain, arg)
 
     for (;;)
     {
-        Accel::update();
         Speedo::update();
         CanBus::update();
 
@@ -83,9 +81,21 @@ THD_FUNCTION(ThreadMain, arg)
     }
 }
 
+THD_WORKING_AREA(waThdAccel, 4 * 256);
+THD_FUNCTION(ThreadAccel, arg)
+{
+    Accel::init();
+    for (;;)
+    {
+        Accel::update();
+        chThdSleepMilliseconds(20);
+    }
+}
+
 void chSetup()
 {
-    chThdCreateStatic(waThdMain, sizeof(waThdMain), NORMALPRIO+1, ThreadMain, &GV);
+    chThdCreateStatic(waThdMain, sizeof(waThdMain), NORMALPRIO + 1, ThreadMain, &GV);
+    chThdCreateStatic(waThdAccel, sizeof(waThdAccel), NORMALPRIO + 2, ThreadAccel, &GV);
 }
 
 void setup()

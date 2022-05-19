@@ -40,11 +40,6 @@ void init(void)
 
 void update(void)
 {
-    static elapsedMillis last_update;
-
-    if (last_update < 20)
-        return;
-
     // Update accel values
     msa.read();
 
@@ -53,8 +48,6 @@ void update(void)
     GV.accel.x = fx.put(msa.x_g) - gx.put(msa.x_g);
     GV.accel.y = fy.put(msa.y_g) - gy.put(msa.y_g);
     GV.accel.z = fz.put(msa.z_g) - gz.put(msa.z_g);
-
-    last_update = 0;
 }
 
 void print_debug(Print& p)

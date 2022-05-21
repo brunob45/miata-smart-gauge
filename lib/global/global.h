@@ -48,6 +48,7 @@ struct GlobalVars
     uint16_t vss;
     uint16_t fault_code = 0x7fff;
     uint16_t waSize;
+    float temperature;
 };
 
 extern GlobalVars GV;

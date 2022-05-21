@@ -31,6 +31,7 @@ THD_WORKING_AREA(waThdMain, 4 * 256);
 THD_FUNCTION(ThreadMain, arg)
 {
     GlobalVars* pGV = (GlobalVars*)arg;
+    tempmon_init();
 
     if (ARM_DWT_CYCCNT == ARM_DWT_CYCCNT)
     {
@@ -66,6 +67,12 @@ THD_FUNCTION(ThreadMain, arg)
             analogWrite(6, (pGV->lumi > 512) ? 30 : 255);
         }
 
+        if (TEMPMON_TEMPSENSE0 & 0x4U)
+        {
+            // read temperature if ready
+            pGV->temperature = tempmonGetTemp();
+        }
+
         if (millis() - last_fault_change > 500)
         {
             // High coolant temperature
@@ -85,7 +92,9 @@ THD_FUNCTION(ThreadMain, arg)
         }
 
         Display::update();
-        pGV->waSize = chUnusedThreadStack(waThdMain, sizeof(waThdMain));
+
+        const uint16_t waSize = chUnusedThreadStack(waThdMain, sizeof(waThdMain));
+        pGV->waSize = min(pGV->waSize, waSize);
 
         chThdSleepMilliseconds(0); // tickless OS, yield control to other threads
     }
@@ -94,10 +103,17 @@ THD_FUNCTION(ThreadMain, arg)
 THD_WORKING_AREA(waThdAccel, 4 * 256);
 THD_FUNCTION(ThreadAccel, arg)
 {
+    GlobalVars* pGV = (GlobalVars*)arg;
+
     Accel::init();
+
     for (;;)
     {
         Accel::update();
+
+        const uint16_t waSize = chUnusedThreadStack(waThdAccel, sizeof(waThdAccel));
+        pGV->waSize = min(pGV->waSize, waSize);
+
         chThdSleepMilliseconds(20);
     }
 }
@@ -110,6 +126,7 @@ void chSetup()
 
 void setup()
 {
+    GV.waSize = 0xFFFF;
     chBegin(chSetup);
 }
 

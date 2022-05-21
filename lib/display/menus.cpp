@@ -39,11 +39,11 @@ uint8_t numSize(int n)
 
 void initGauge()
 {
-//    tft.fillCircle(gaugeCenter.x(), gaugeCenter.y(), gaugeRadius + 12, DISPLAY_ACCENT2);
-//    tft.drawCircle(gaugeCenter.x(), gaugeCenter.y(), gaugeRadius + 11, GAUGE_BG);
-//    tft.fillCircle(gaugeCenter.x(), gaugeCenter.y(), gaugeRadius - 12, GAUGE_BG);
+    //    tft.fillCircle(gaugeCenter.x(), gaugeCenter.y(), gaugeRadius + 12, DISPLAY_ACCENT2);
+    //    tft.drawCircle(gaugeCenter.x(), gaugeCenter.y(), gaugeRadius + 11, GAUGE_BG);
+    //    tft.fillCircle(gaugeCenter.x(), gaugeCenter.y(), gaugeRadius - 12, GAUGE_BG);
     tft.writeRect(0, 0, gimp_image.width, gimp_image.height, (uint16_t*)gimp_image.pixel_data);
-//    tft.drawCircle(gaugeCenter.x(), gaugeCenter.y(), gaugeRadius - 12, DISPLAY_ACCENT1);
+    //    tft.drawCircle(gaugeCenter.x(), gaugeCenter.y(), gaugeRadius - 12, DISPLAY_ACCENT1);
 
     tft.setTextSize(2);
     tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
@@ -298,6 +298,8 @@ void updateMenu2()
     tft.drawRect(5, 158, 20, 64, ILI9341_WHITE);
 
     drawNumber(GV.ms.adv, 10, 3, 5, 77 + 0);
+    drawNumber(GV.temperature * 10, 10, 3, 5, 20);
+    tft.print("*C");
 }
 
 } // namespace Internal

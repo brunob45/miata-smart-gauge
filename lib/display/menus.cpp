@@ -298,8 +298,7 @@ void updateMenu2()
     tft.drawRect(5, 158, 20, 64, ILI9341_WHITE);
 
     drawNumber(GV.ms.adv, 10, 3, 5, 77 + 0);
-    drawNumber(GV.temperature * 10, 10, 3, 5, 20);
-    tft.print("*C");
+    drawNumber(GV.temperature * 10, 10, 4, 5, 32);
 }
 
 } // namespace Internal

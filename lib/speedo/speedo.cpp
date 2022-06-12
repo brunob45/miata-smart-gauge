@@ -8,6 +8,7 @@ namespace Speedo
 {
 namespace
 {
+const uint8_t PIN_VSS = 22;
 volatile uint32_t last_edge_period;
 volatile uint32_t last_edge_time;
 volatile bool have_sync = false;
@@ -31,7 +32,8 @@ void pin_callback()
 void init()
 {
     have_sync = false;
-    attachInterrupt(21, pin_callback, RISING);
+    pinMode(PIN_VSS, INPUT);
+    attachInterrupt(PIN_VSS, pin_callback, FALLING);
 }
 
 void update()
@@ -51,7 +53,8 @@ void update()
         }
         else
         {
-            GV.vss = uint16_t(filter.put(my_period) / 10);
+            float tmp = filter.put(my_period) / 10;
+            GV.vss = uint16_t(min(65535, tmp));
         }
     }
     last_update = 0;

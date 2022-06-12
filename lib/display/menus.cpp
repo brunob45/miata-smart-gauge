@@ -276,7 +276,7 @@ void initMenu2()
 
     tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
     tft.setCursor(5, 60 + 0);
-    tft.print("ADV");
+    tft.print("VSS");
 
     tft.setTextSize(1);
     tft.setCursor(5, 105);
@@ -297,7 +297,7 @@ void updateMenu2()
     tft.fillRect(5, 158 + 64 - GV.ms.map / 1000.0 * 64.0, 20, GV.ms.map / 1000.0 * 64.0, ILI9341_GREEN);
     tft.drawRect(5, 158, 20, 64, ILI9341_WHITE);
 
-    drawNumber(GV.ms.adv, 10, 3, 5, 77 + 0);
+    drawNumber(GV.vss, 1, 5, 5, 77 + 0);
     drawNumber(GV.temperature * 10, 10, 4, 5, 32);
 }
 

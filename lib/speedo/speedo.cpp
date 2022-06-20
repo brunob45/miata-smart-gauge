@@ -9,55 +9,49 @@ namespace Speedo
 namespace
 {
 const uint8_t PIN_VSS = 22;
-volatile uint32_t last_edge_period;
-volatile uint32_t last_edge_time;
-volatile bool have_sync = false;
+volatile uint32_t v_edge_cnt = 0;
+uint32_t last_edge_time;
 
 // filter constant = "refresh rate" / "signal lag" (in seconds)
-FilterClass filter(0.05f / 0.2f);
+FilterClass filter(0.1f / 0.5f);
 
 } // namespace
 
 void pin_callback()
 {
-    const uint32_t now = fast_micros();
-    if (have_sync)
+    bool do_sample = true;
+    for (int i = 0; i < 8; i++)
     {
-        last_edge_period = now - last_edge_time;
+        do_sample &= digitalReadFast(PIN_VSS);
     }
-    last_edge_time = now;
-    have_sync = true;
+    if (do_sample)
+    {
+        v_edge_cnt++;
+    }
 }
 
 void init()
 {
-    have_sync = false;
+    last_edge_time = fast_micros();
     pinMode(PIN_VSS, INPUT);
-    attachInterrupt(PIN_VSS, pin_callback, FALLING);
+    attachInterrupt(PIN_VSS, pin_callback, RISING);
 }
 
 void update()
 {
-    static elapsedMillis last_update;
-    if (last_update < 50)
+    const uint32_t now = fast_micros();
+    const uint32_t my_period = now - last_edge_time;
+
+    if (my_period < 100'000)
         return;
 
-    if (have_sync)
-    {
-        const uint32_t my_period = max(last_edge_period, fast_micros() - last_edge_time);
-        if (my_period > 500000) // 500 ms = 2 Hz
-        {
-            have_sync = false;
-            GV.vss = -1;
-            filter.reset();
-        }
-        else
-        {
-            float tmp = filter.put(my_period) / 10;
-            GV.vss = uint16_t(min(65535, tmp));
-        }
-    }
-    last_update = 0;
+    noInterrupts();
+    const uint32_t edge_cnt = v_edge_cnt;
+    v_edge_cnt = 0;
+    interrupts();
+
+    GV.vss = uint16_t(filter.put(1.5f * 1'000'000.0f * edge_cnt / my_period));
+    last_edge_time = now;
 }
 
 } // namespace Speedo

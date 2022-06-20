@@ -9,7 +9,10 @@
 #include "global.h"
 #include "speedo.h"
 
+#include "filter.h"
+
 GlobalVars GV;
+FilterClass filter_temp(0.1f);
 
 void checkFault(uint16_t* code, uint8_t index, bool set, bool reset)
 {
@@ -70,7 +73,7 @@ THD_FUNCTION(ThreadMain, arg)
         if (TEMPMON_TEMPSENSE0 & 0x4U)
         {
             // read temperature if ready
-            pGV->temperature = tempmonGetTemp();
+            pGV->temperature = filter_temp.put(tempmonGetTemp());
         }
 
         if (millis() - last_fault_change > 500)

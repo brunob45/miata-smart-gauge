@@ -111,9 +111,10 @@ THD_FUNCTION(ThreadAccel, arg)
 
 void chSetup()
 {
-    chThdCreateStatic(waThdMain, sizeof(waThdMain), NORMALPRIO + 1, ThreadMain, &GV);
-    display_init(NORMALPRIO + 2, &GV);
-    chThdCreateStatic(waThdAccel, sizeof(waThdAccel), NORMALPRIO + 3, ThreadAccel, &GV);
+    int prio = NORMALPRIO + 1;
+    chThdCreateStatic(waThdMain, sizeof(waThdMain), prio++, ThreadMain, &GV);
+    prio += display_init(prio, &GV);
+    chThdCreateStatic(waThdAccel, sizeof(waThdAccel), prio++, ThreadAccel, &GV);
 }
 
 void setup()

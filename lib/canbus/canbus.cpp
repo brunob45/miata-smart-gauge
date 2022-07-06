@@ -129,7 +129,7 @@ static FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16> CANbus;
 bool wasConnected = false;
 elapsedMillis last_frame = CANBUS_TIMEOUT;
 bool initDone = false;
-uint8_t vetable[16 * 16];
+uint8_t initStep = 0;
 uint8_t index = 0;
 bool requestPending = false;
 } // namespace
@@ -204,6 +204,7 @@ void send_request(uint8_t id,
     msg.buf[2] = uint8_t(((offset << 5) & 0xE0) | lenght);
 
     CANbus.write(msg);
+    requestPending = true;
 }
 
 bool rx_command(const CAN_message_t& msg)
@@ -282,7 +283,21 @@ bool rx_command(const CAN_message_t& msg)
         {
             for (int i = 0; i < msg.len; i++)
             {
-                vetable[header.offset + i] = msg.buf[i];
+                GV.ms.vetable[(header.offset-256) + i] = msg.buf[i];
+            }
+        }
+        else if (header.table == 9 && header.offset >= 800 && header.offset <= (832 - msg.len))
+        {
+            for (int i = 0; i < msg.len/2; i++)
+            {
+                GV.ms.rpm_table[(header.offset-800)/2 + i] = (uint16_t)msg.buf[i*2+1] + (msg.buf[i*2]<<8);
+            }
+        }
+        else if (header.table == 9 && header.offset >= 896 && header.offset <= (928 - msg.len))
+        {
+            for (int i = 0; i < msg.len/2; i++)
+            {
+                GV.ms.map_table[(header.offset-896)/2 + i] = (uint16_t)msg.buf[i*2+1] + (msg.buf[i*2]<<8);
             }
         }
         break;
@@ -322,19 +337,42 @@ void update()
         {
             ((uint8_t*)&GV.ms)[i] = 0;
         }
+        initDone = false;
     }
     wasConnected = GV.connected;
 
     // Read ve table #2 content
     if (GV.connected && !initDone && !requestPending)
     {
-        send_request(0, 9, 256 + (index * 8), 8);
-        ++index;
-        initDone = index >= (256 / 8);
-        requestPending = true;
-        if (initDone)
+        switch(initStep)
         {
-            Serial.println("done");
+        case 0:
+            send_request(0, 9, 256 + (index * 8), 8);
+            if (++index >= (256 / 8)) // 256 bytes, 8 bytes per msg
+            {
+                index = 0;
+                ++initStep;
+            }
+            break;
+        case 1:
+            send_request(0, 9, 800 + (index * 8), 8);
+            if (++index >= (16 / 4)) // 16 int, 4 int per msg
+            {
+                index = 0;
+                ++initStep;
+            }
+            break;
+        case 2:
+            send_request(0, 9, 896 + (index * 8), 8);
+            if (++index >= (16 / 4)) // 16 int, 4 int per msg
+            {
+                index = 0;
+                ++initStep;
+            }
+            break;
+        case 3:
+            initDone = true;
+            break;
         }
     }
 }

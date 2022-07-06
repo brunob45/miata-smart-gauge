@@ -44,15 +44,11 @@ THD_FUNCTION(ThreadMain, arg)
         ARM_DWT_CTRL |= ARM_DWT_CTRL_CYCCNTENA;
     }
 
-    pinMode(6, OUTPUT);
-    digitalWrite(6, LOW);
-    pinMode(A6, INPUT);
 
     Serial.begin(115200);
 
     Speedo::init();
     CanBus::init();
-    Display::init();
 
     uint16_t last_fault = 0;
     uint32_t last_fault_change = 0;
@@ -63,12 +59,6 @@ THD_FUNCTION(ThreadMain, arg)
         CanBus::update();
 
         pGV->alert = pGV->ms.rpm > 7200;
-
-        pGV->lumi = analogRead(A6);
-        if (Display::isReady())
-        {
-            analogWrite(6, (pGV->lumi > 512) ? 30 : 255);
-        }
 
         if (TEMPMON_TEMPSENSE0 & 0x4U)
         {
@@ -93,8 +83,6 @@ THD_FUNCTION(ThreadMain, arg)
                 last_fault = pGV->fault_code;
             }
         }
-
-        Display::update();
 
         const uint16_t waSize = chUnusedThreadStack(waThdMain, sizeof(waThdMain));
         pGV->waSize = min(pGV->waSize, waSize);
@@ -124,7 +112,8 @@ THD_FUNCTION(ThreadAccel, arg)
 void chSetup()
 {
     chThdCreateStatic(waThdMain, sizeof(waThdMain), NORMALPRIO + 1, ThreadMain, &GV);
-    chThdCreateStatic(waThdAccel, sizeof(waThdAccel), NORMALPRIO + 2, ThreadAccel, &GV);
+    display_init(NORMALPRIO + 2, &GV);
+    chThdCreateStatic(waThdAccel, sizeof(waThdAccel), NORMALPRIO + 3, ThreadAccel, &GV);
 }
 
 void setup()

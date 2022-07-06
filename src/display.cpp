@@ -38,7 +38,7 @@ uint16_t updateBrightness()
 void updateDisplay()
 {
     tft.updateScreenAsync();
-    while(tft.asyncUpdateActive())
+    while (tft.asyncUpdateActive())
     {
         chThdSleepMilliseconds(2);
     }
@@ -47,6 +47,7 @@ void updateDisplay()
 
 THD_FUNCTION(ThreadDisplay, arg)
 {
+    const float RATIO_BIN = 0.3f; // [0, 0.5]
     GlobalVars* pGV = (GlobalVars*)arg;
 
     pinMode(6, OUTPUT);
@@ -73,11 +74,10 @@ THD_FUNCTION(ThreadDisplay, arg)
         pGV->lumi = updateBrightness();
 
         tft.fillScreen(ILI9341_BLACK);
-        tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
-        tft.setCursor(0,0);
 
         tft.setTextSize(5);
-        tft.setCursor(160, 20);
+        tft.setCursor(40, 20);
+        tft.setTextColor(ILI9341_GREENYELLOW, ILI9341_BLACK);
 
         uint16_t val = pGV->ms.rpm;
         if (val < 10) tft.print(' ');
@@ -85,23 +85,81 @@ THD_FUNCTION(ThreadDisplay, arg)
         if (val < 1000) tft.print(' ');
         tft.print(val);
 
-        tft.setTextSize(1);
-        int x, y;
-        for (x = 0; x < 15; x++)
+        tft.print('|');
+
+        val = pGV->ms.map;
+        if (val < 10) tft.print(' ');
+        if (val < 100) tft.print(' ');
+        if (val < 1000) tft.print(' ');
+        tft.print(val);
+
+        int x, y, x2, y2;
+        for (x = 0; x < 16; x++)
         {
-            if (pGV->ms.rpm <= pGV->ms.rpm_table[x+1]) break;
+            if (pGV->ms.rpm <= pGV->ms.rpm_table[x + 1]) break;
         }
-        for (y = 0; y < 15; y++)
+        if (x > 0 && x < 16)
         {
-            if (pGV->ms.map <= pGV->ms.map_table[y+1]) break;
-        }
-        for(int j = 0; j < 16; j++)
-        {
-            for(int i = 0; i < 16; i++)
+            float rpm1 = pGV->ms.rpm_table[x - 1];
+            float rpm2 = pGV->ms.rpm_table[x];
+            float alpha = (pGV->ms.rpm - rpm1) / (rpm2 - rpm1);
+            if (alpha <= RATIO_BIN)
             {
-                tft.setCursor(20*i, 10*j+80);
-                const uint8_t val = pGV->ms.vetable[i+(15-j)*16];
-                if (i == x && j == y)
+                // value near rpm1
+                x = x - 1;
+                x2 = x;
+            }
+            else if (alpha >= (1 - RATIO_BIN))
+            {
+                // value near rpm2
+                x2 = x;
+            }
+            else
+            {
+                // value in the middle
+                x2 = x - 1;
+            }
+        }
+        else
+        {
+            x2 = x;
+        }
+        for (y = 0; y < 16; y++)
+        {
+            if (pGV->ms.map <= pGV->ms.map_table[y + 1]) break;
+        }
+        if (x > 0 && x < 16)
+        {
+            float map1 = pGV->ms.map_table[y - 1];
+            float map2 = pGV->ms.map_table[y];
+            float alpha = (pGV->ms.map - map1) / (map2 - map1);
+            if (alpha <= RATIO_BIN)
+            {
+                y = y - 1;
+                y2 = y;
+            }
+            else if (alpha >= (1 - RATIO_BIN))
+            {
+                y2 = y;
+            }
+            else
+            {
+                y2 = y - 1;
+            }
+        }
+        else
+        {
+            y2 = y;
+        }
+        
+        tft.setTextSize(1);
+        for (int j = 15; j >= 0; j--)
+        {
+            for (int i = 0; i < 16; i++)
+            {
+                tft.setCursor(20 * i, 10 * j + 80);
+                const uint8_t val = pGV->ms.vetable[i + j * 16];
+                if ((i == x || i == x2) && (j == y || j == y2))
                     tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
                 else if (val < 98)
                     tft.setTextColor(ILI9341_WHITE, ILI9341_RED);

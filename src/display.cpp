@@ -74,21 +74,18 @@ THD_FUNCTION(ThreadDisplay, arg)
     for (;;)
     {
         int x, y, x2, y2;
-        float ax = -1, ay = -1;
-        for (x = 0; x < 16; x++)
+        for (x = 1; x < 15; x++)
         {
-            if (pGV->ms.rpm <= pGV->ms.rpm_table[x + 1]) break;
+            if (pGV->ms.rpm <= pGV->ms.rpm_table[x]) break;
         }
-        if (x > 0 && x < 16)
         {
             float rpm1 = pGV->ms.rpm_table[x - 1];
             float rpm2 = pGV->ms.rpm_table[x];
-            ax = (pGV->ms.rpm - rpm1) / (rpm2 - rpm1);
+            float ax = (pGV->ms.rpm - rpm1) / (rpm2 - rpm1);
             if (ax <= RATIO_BIN)
             {
                 // value near rpm1
-                x = x - 1;
-                x2 = x;
+                x2 = x = (x - 1);
             }
             else if (ax >= (1 - RATIO_BIN))
             {
@@ -98,26 +95,22 @@ THD_FUNCTION(ThreadDisplay, arg)
             else
             {
                 // value in the middle
-                x2 = x - 1;
+                x2 = x;
+                x = x - 1;
             }
         }
-        else
+        
+        for (y = 1; y < 15; y++)
         {
-            x2 = x;
+            if (pGV->ms.map <= pGV->ms.map_table[y]) break;
         }
-        for (y = 0; y < 16; y++)
-        {
-            if (pGV->ms.map <= pGV->ms.map_table[y + 1]) break;
-        }
-        if (x > 0 && x < 16)
         {
             float map1 = pGV->ms.map_table[y - 1];
             float map2 = pGV->ms.map_table[y];
-            ay = (pGV->ms.map - map1) / (map2 - map1);
+            float ay = (pGV->ms.map - map1) / (map2 - map1);
             if (ay <= RATIO_BIN)
             {
-                y = y - 1;
-                y2 = y;
+                y2 = y = (y - 1);
             }
             else if (ay >= (1 - RATIO_BIN))
             {
@@ -125,12 +118,9 @@ THD_FUNCTION(ThreadDisplay, arg)
             }
             else
             {
-                y2 = y - 1;
+                y2 = y;
+                y = y - 1;
             }
-        }
-        else
-        {
-            y2 = y;
         }
 
         tft.fillScreen(ILI9341_BLACK);
@@ -139,7 +129,7 @@ THD_FUNCTION(ThreadDisplay, arg)
         tft.setCursor(40, 20);
         tft.setTextColor(ILI9341_GREENYELLOW, ILI9341_BLACK);
 
-        uint16_t val = ax * 100; // pGV->ms.rpm;
+        uint16_t val = pGV->ms.rpm;
         if (val < 10) tft.print(' ');
         if (val < 100) tft.print(' ');
         if (val < 1000) tft.print(' ');
@@ -147,7 +137,7 @@ THD_FUNCTION(ThreadDisplay, arg)
 
         tft.print('|');
 
-        val = ay * 100; // pGV->ms.map;
+        val = pGV->ms.map;
         if (val < 10) tft.print(' ');
         if (val < 100) tft.print(' ');
         if (val < 1000) tft.print(' ');
@@ -158,7 +148,6 @@ THD_FUNCTION(ThreadDisplay, arg)
         {
             for (int i = 0; i < 16; i++)
             {
-                tft.setCursor(20 * i, -10 * j + 230);
                 const uint8_t val = pGV->ms.vetable[i + j * 16];
                 if ((i == x || i == x2) && (j == y || j == y2))
                     tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
@@ -169,6 +158,7 @@ THD_FUNCTION(ThreadDisplay, arg)
                 else
                     tft.setTextColor(ILI9341_WHITE, ILI9341_DARKGREEN);
 
+                tft.setCursor(20 * i, -10 * j + 230);
                 if (val < 10) tft.print(' ');
                 if (val < 100) tft.print(' ');
                 tft.print(val);

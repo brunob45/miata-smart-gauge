@@ -5,11 +5,10 @@ print(bins)
 
 RATIO_BIN = 0.3
 rpm = 1200
-x = 1
-while x < 15:
+
+for x in range(1, 16):
     if (rpm <= bins[x]):
         break
-    x += 1
 
 rpm1 = bins[x-1]
 rpm2 = bins[x]

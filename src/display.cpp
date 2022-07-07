@@ -11,7 +11,6 @@ namespace
 {
 THD_WORKING_AREA(waThdDisplay, 4 * 256);
 THD_WORKING_AREA(waThdBacklight, 4 * 256);
-thread_t* tp = NULL;
 
 DMAMEM uint16_t tft_frame_buffer0[240 * 320];
 DMAMEM uint16_t tft_frame_buffer1[240 * 320];
@@ -33,7 +32,11 @@ constexpr void get565cmap()
 void updateDisplay()
 {
     // Wait for previous refresh to finish
-    chEvtWaitAny(ILI9341_UPDATE_EVENT);
+    // chEvtWaitAny(ILI9341_UPDATE_EVENT);
+    while (tft.asyncUpdateActive())
+    {
+        chThdSleepMilliseconds(2);
+    }
     // Start new refresh
     tft.updateScreenAsync();
     // Switch frame buffer
@@ -46,14 +49,9 @@ void updateDisplay()
 
 THD_FUNCTION(ThreadDisplay, arg)
 {
-    const int RATIO_BIN = 0.25; // [0, 0.50]
+    const float RATIO_BIN = 0.25f; // [0, 0.50]
 
     GlobalVars* pGV = (GlobalVars*)arg;
-
-    pinMode(6, OUTPUT); // Brightness contol pin
-    pinMode(A6, INPUT); // Night lights input
-
-    analogWrite(6, 0); // Turn off brightness
 
     get565cmap();
 
@@ -66,8 +64,6 @@ THD_FUNCTION(ThreadDisplay, arg)
     tft.writeRect8BPP(0, 0, width, height, header_data, header_565_cmap);
     updateDisplay();
 
-    chEvtSignal(tp, EVENT_MASK(1)); // Display is ready, enable backlight
-
     // Wait 2s for boot screen
     chThdSleepMilliseconds(2000);
 
@@ -76,7 +72,8 @@ THD_FUNCTION(ThreadDisplay, arg)
         int x, y, x2, y2;
         for (x = 1; x < 15; x++)
         {
-            if (pGV->ms.rpm <= pGV->ms.rpm_table[x]) break;
+            if (pGV->ms.rpm <= pGV->ms.rpm_table[x])
+                break;
         }
         {
             float rpm1 = pGV->ms.rpm_table[x - 1];
@@ -85,7 +82,8 @@ THD_FUNCTION(ThreadDisplay, arg)
             if (ax <= RATIO_BIN)
             {
                 // value near rpm1
-                x2 = x = (x - 1);
+                x = x - 1;
+                x2 = x;
             }
             else if (ax >= (1 - RATIO_BIN))
             {
@@ -99,10 +97,11 @@ THD_FUNCTION(ThreadDisplay, arg)
                 x = x - 1;
             }
         }
-        
+
         for (y = 1; y < 15; y++)
         {
-            if (pGV->ms.map <= pGV->ms.map_table[y]) break;
+            if (pGV->ms.map <= pGV->ms.map_table[y])
+                break;
         }
         {
             float map1 = pGV->ms.map_table[y - 1];
@@ -110,7 +109,8 @@ THD_FUNCTION(ThreadDisplay, arg)
             float ay = (pGV->ms.map - map1) / (map2 - map1);
             if (ay <= RATIO_BIN)
             {
-                y2 = y = (y - 1);
+                y = y - 1;
+                y2 = y;
             }
             else if (ay >= (1 - RATIO_BIN))
             {
@@ -144,7 +144,7 @@ THD_FUNCTION(ThreadDisplay, arg)
         tft.print(val);
 
         tft.setTextSize(1);
-        for (int j = 0; j < 0; j++)
+        for (int j = 0; j < 16; j++)
         {
             for (int i = 0; i < 16; i++)
             {
@@ -172,14 +172,10 @@ THD_FUNCTION(ThreadBacklight, arg)
 {
     GlobalVars* pGV = (GlobalVars*)arg;
 
-    tp = chThdGetSelfX();
-
     pinMode(6, OUTPUT); // Brightness contol pin
     pinMode(A6, INPUT); // Night lights input
 
     analogWrite(6, 0); // Turn off brightness
-
-    chEvtWaitAny(EVENT_MASK(1)); // Wait until display is ready
 
     for (;;)
     {

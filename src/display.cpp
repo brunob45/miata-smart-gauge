@@ -11,6 +11,7 @@ namespace
 {
 THD_WORKING_AREA(waThdDisplay, 4 * 256);
 THD_WORKING_AREA(waThdBacklight, 4 * 256);
+thread_t* tp;
 
 DMAMEM uint16_t tft_frame_buffer0[240 * 320];
 DMAMEM uint16_t tft_frame_buffer1[240 * 320];
@@ -32,13 +33,11 @@ constexpr void get565cmap()
 void updateDisplay()
 {
     // Wait for previous refresh to finish
-    // chEvtWaitAny(ILI9341_UPDATE_EVENT);
-    while (tft.asyncUpdateActive())
-    {
-        chThdSleepMilliseconds(2);
-    }
+    tft.waitUpdateAsyncComplete();
+
     // Start new refresh
     tft.updateScreenAsync();
+
     // Switch frame buffer
     if (tft.getFrameBuffer() == tft_frame_buffer0)
         tft.setFrameBuffer(tft_frame_buffer1);
@@ -59,10 +58,12 @@ THD_FUNCTION(ThreadDisplay, arg)
     tft.setFrameBuffer(tft_frame_buffer0);
     tft.useFrameBuffer(true);
     tft.setRotation(3);
-    tft.attachThread(chThdGetSelfX());
 
     tft.writeRect8BPP(0, 0, width, height, header_data, header_565_cmap);
-    updateDisplay();
+    tft.updateScreenAsync();
+    tft.waitUpdateAsyncComplete();
+
+    chEvtSignal(tp, EVENT_MASK(1)); // Display is ready, enable backlight
 
     // Wait 2s for boot screen
     chThdSleepMilliseconds(2000);
@@ -125,9 +126,9 @@ THD_FUNCTION(ThreadDisplay, arg)
 
         tft.fillScreen(ILI9341_BLACK);
 
-        tft.setTextSize(5);
-        tft.setCursor(40, 20);
+        tft.setTextSize(4);
         tft.setTextColor(ILI9341_GREENYELLOW, ILI9341_BLACK);
+        tft.setCursor(40, 6);
 
         uint16_t val = pGV->ms.rpm;
         if (val < 10) tft.print(' ');
@@ -143,6 +144,21 @@ THD_FUNCTION(ThreadDisplay, arg)
         if (val < 1000) tft.print(' ');
         tft.print(val);
 
+        tft.setCursor(40, 40);
+        val = 0.001f * pGV->ms.afr * pGV->ms.egocor;
+        if (val < 10) tft.print(' ');
+        if (val < 100) tft.print(' ');
+        if (val < 1000) tft.print(' ');
+        tft.print(val);
+        
+        tft.print('|');
+
+        val = pGV->ms.egocor;
+        if (val < 10) tft.print(' ');
+        if (val < 100) tft.print(' ');
+        if (val < 1000) tft.print(' ');
+        tft.print(val);
+
         tft.setTextSize(1);
         for (int j = 0; j < 16; j++)
         {
@@ -150,7 +166,7 @@ THD_FUNCTION(ThreadDisplay, arg)
             {
                 const uint8_t val = pGV->ms.vetable[i + j * 16];
                 if ((i == x || i == x2) && (j == y || j == y2))
-                    tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
+                    tft.setTextColor(ILI9341_BLACK, ILI9341_YELLOW);
                 else if (val < 98)
                     tft.setTextColor(ILI9341_WHITE, ILI9341_RED);
                 else if (val > 102)
@@ -171,6 +187,9 @@ THD_FUNCTION(ThreadDisplay, arg)
 THD_FUNCTION(ThreadBacklight, arg)
 {
     GlobalVars* pGV = (GlobalVars*)arg;
+
+    tp = chThdGetSelfX();
+    chEvtWaitAny(ALL_EVENTS); // Wait until display is ready
 
     pinMode(6, OUTPUT); // Brightness contol pin
     pinMode(A6, INPUT); // Night lights input

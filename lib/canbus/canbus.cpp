@@ -5,6 +5,94 @@
 
 #include "global.h"
 
+namespace
+{
+const float RATIO_BIN = 0.25f; // [0, 0.50]
+bool afrIsValid = false, afrWasValid = false;
+uint32_t afrTimeValid = 0;
+
+void updateLongTermTrim()
+{
+    int x, y, x2, y2;
+    for (x = 1; x < 15; x++)
+    {
+        if (GV.ms.rpm <= GV.ms.rpm_table[x])
+            break;
+    }
+    {
+        float rpm1 = GV.ms.rpm_table[x - 1];
+        float rpm2 = GV.ms.rpm_table[x];
+        float ax = (GV.ms.rpm - rpm1) / (rpm2 - rpm1);
+        if (ax <= RATIO_BIN)
+        {
+            // value near rpm1
+            x = x - 1;
+            x2 = x;
+        }
+        else if (ax >= (1 - RATIO_BIN))
+        {
+            // value near rpm2
+            x2 = x;
+        }
+        else
+        {
+            // value in the middle
+            x2 = x;
+            x = x - 1;
+        }
+    }
+
+    for (y = 1; y < 15; y++)
+    {
+        if (GV.ms.map <= GV.ms.map_table[y])
+            break;
+    }
+    {
+        float map1 = GV.ms.map_table[y - 1];
+        float map2 = GV.ms.map_table[y];
+        float ay = (GV.ms.map - map1) / (map2 - map1);
+        if (ay <= RATIO_BIN)
+        {
+            y = y - 1;
+            y2 = y;
+        }
+        else if (ay >= (1 - RATIO_BIN))
+        {
+            y2 = y;
+        }
+        else
+        {
+            y2 = y;
+            y = y - 1;
+        }
+    }
+    GV.ltt.x[0] = x;
+    GV.ltt.x[1] = x2;
+    GV.ltt.y[0] = y;
+    GV.ltt.y[1] = y2;
+
+    afrIsValid = (GV.ms.afrtgt > 0) &&
+                 (GV.ms.pw1 > 0) &&
+                 (GV.ms.afr > 8) &&
+                 (GV.ms.clt > 1500); // 150.0F = 65C
+    if (afrIsValid && !afrWasValid)
+    {
+        afrTimeValid = millis();
+    }
+    afrWasValid = afrIsValid;
+    GV.ltt.engaged = afrIsValid && (millis() - afrTimeValid) > 5000;
+
+    if (GV.ltt.engaged)
+    {
+        GV.ltt.error = GV.ms.egocor / 1000.0f * GV.ms.afr / GV.ms.afrtgt;
+    }
+    else
+    {
+        GV.ltt.error = 1.0f;
+    }
+}
+} // namespace
+
 namespace CanBus
 {
 enum class MSG_TYPE : uint8_t
@@ -174,6 +262,7 @@ bool rx_broadcast(const CAN_message_t& msg)
         GV.ms.sensors1 = (msg.buf[2] << 8) | (msg.buf[3] << 0);
         GV.ms.sensors2 = (msg.buf[4] << 8) | (msg.buf[5] << 0);
         GV.ms.knk_rtd = (msg.buf[6] << 8) | (msg.buf[7] << 0);
+        updateLongTermTrim();
         return true;
     default:
         // unknown id
@@ -283,21 +372,21 @@ bool rx_command(const CAN_message_t& msg)
         {
             for (int i = 0; i < msg.len; i++)
             {
-                GV.ms.vetable[(header.offset-256) + i] = msg.buf[i];
+                GV.ms.vetable[(header.offset - 256) + i] = msg.buf[i];
             }
         }
         else if (header.table == 9 && header.offset >= 800 && header.offset <= (832 - msg.len))
         {
-            for (int i = 0; i < msg.len/2; i++)
+            for (int i = 0; i < msg.len / 2; i++)
             {
-                GV.ms.rpm_table[(header.offset-800)/2 + i] = (uint16_t)msg.buf[i*2+1] + (msg.buf[i*2]<<8);
+                GV.ms.rpm_table[(header.offset - 800) / 2 + i] = (uint16_t)msg.buf[i * 2 + 1] + (msg.buf[i * 2] << 8);
             }
         }
         else if (header.table == 9 && header.offset >= 896 && header.offset <= (928 - msg.len))
         {
-            for (int i = 0; i < msg.len/2; i++)
+            for (int i = 0; i < msg.len / 2; i++)
             {
-                GV.ms.map_table[(header.offset-896)/2 + i] = (uint16_t)msg.buf[i*2+1] + (msg.buf[i*2]<<8);
+                GV.ms.map_table[(header.offset - 896) / 2 + i] = (uint16_t)msg.buf[i * 2 + 1] + (msg.buf[i * 2] << 8);
             }
         }
         break;
@@ -344,7 +433,7 @@ void update()
     // Read ve table #2 content
     if (GV.connected && !initDone && !requestPending)
     {
-        switch(initStep)
+        switch (initStep)
         {
         case 0:
             send_request(0, 9, 256 + (index * 8), 8);

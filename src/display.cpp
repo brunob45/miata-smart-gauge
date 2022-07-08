@@ -71,10 +71,6 @@ void printNum(int16_t num)
 
 THD_FUNCTION(ThreadDisplay, arg)
 {
-    const float RATIO_BIN = 0.25f; // [0, 0.50]
-    bool afrIsValid = false, afrWasValid = false, trimEngaged = false;
-    uint32_t afrTimeValid = 0;
-
     GlobalVars* pGV = (GlobalVars*)arg;
 
     get565cmap();
@@ -103,60 +99,6 @@ THD_FUNCTION(ThreadDisplay, arg)
     {
         pGV->lumi = updateBrightness();
 
-        int x, y, x2, y2;
-        for (x = 1; x < 15; x++)
-        {
-            if (pGV->ms.rpm <= pGV->ms.rpm_table[x])
-                break;
-        }
-        {
-            float rpm1 = pGV->ms.rpm_table[x - 1];
-            float rpm2 = pGV->ms.rpm_table[x];
-            float ax = (pGV->ms.rpm - rpm1) / (rpm2 - rpm1);
-            if (ax <= RATIO_BIN)
-            {
-                // value near rpm1
-                x = x - 1;
-                x2 = x;
-            }
-            else if (ax >= (1 - RATIO_BIN))
-            {
-                // value near rpm2
-                x2 = x;
-            }
-            else
-            {
-                // value in the middle
-                x2 = x;
-                x = x - 1;
-            }
-        }
-
-        for (y = 1; y < 15; y++)
-        {
-            if (pGV->ms.map <= pGV->ms.map_table[y])
-                break;
-        }
-        {
-            float map1 = pGV->ms.map_table[y - 1];
-            float map2 = pGV->ms.map_table[y];
-            float ay = (pGV->ms.map - map1) / (map2 - map1);
-            if (ay <= RATIO_BIN)
-            {
-                y = y - 1;
-                y2 = y;
-            }
-            else if (ay >= (1 - RATIO_BIN))
-            {
-                y2 = y;
-            }
-            else
-            {
-                y2 = y;
-                y = y - 1;
-            }
-        }
-
         tft.fillScreen(ILI9341_BLACK);
 
         tft.setTextSize(4);
@@ -167,27 +109,10 @@ THD_FUNCTION(ThreadDisplay, arg)
         tft.print('|');
         printNum(pGV->ms.map);
 
-        afrIsValid = (pGV->ms.afrtgt > 0) &&
-                     (pGV->ms.pw1 > 0) &&
-                     (pGV->ms.afr > 8) &&
-                     (pGV->ms.clt > 1500); // 150.0F = 65C
-        if (afrIsValid && !afrWasValid)
-        {
-            afrTimeValid = millis();
-        }
-        afrWasValid = afrIsValid;
-        trimEngaged = afrIsValid && (millis() - afrTimeValid) > 5000;
-
-        float error = 1000;
-        if (trimEngaged)
-        {
-            error = 1.0f * pGV->ms.afr * pGV->ms.egocor / pGV->ms.afrtgt;
-        }
-
         tft.setCursor(40, 40);
-        printNum(error);
+        printNum(pGV->ltt.error * 1000);
         tft.print('|');
-        printNum(trimEngaged);
+        printNum(pGV->ltt.engaged);
 
         tft.setTextSize(1);
         for (int j = 0; j < 16; j++)
@@ -195,7 +120,8 @@ THD_FUNCTION(ThreadDisplay, arg)
             for (int i = 0; i < 16; i++)
             {
                 const uint8_t val = pGV->ms.vetable[i + j * 16];
-                if ((i == x || i == x2) && (j == y || j == y2))
+                if ((i == pGV->ltt.x[0] || i == pGV->ltt.x[1]) &&
+                    (j == pGV->ltt.y[0] || j == pGV->ltt.y[1]))
                 {
                     tft.setTextColor(ILI9341_BLACK, ILI9341_YELLOW);
                     // if (error > 1020) // 102%

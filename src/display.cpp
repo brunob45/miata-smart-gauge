@@ -50,11 +50,21 @@ uint16_t updateBrightness()
     return lumi;
 }
 
-void printNum(uint16_t num)
+void printNum(int16_t num)
 {
-    if (num < 10) tft.print(' ');
+    if (num < 0)
+    {
+        tft.print('-');
+        num = abs(num);
+    }
+    else
+    {
+        if (num < 1000) tft.print(' ');
+    }
+
     if (num < 100) tft.print(' ');
-    if (num < 1000) tft.print(' ');
+    if (num < 10) tft.print(' ');
+
     tft.print(num);
 }
 } // namespace
@@ -83,7 +93,7 @@ THD_FUNCTION(ThreadDisplay, arg)
     tft.waitUpdateAsyncComplete();
 
     // Wait 2s for boot screen
-    for(int i = 0; i < 20; i++)
+    for (int i = 0; i < 20; i++)
     {
         pGV->lumi = updateBrightness();
         chThdSleepMilliseconds(100);

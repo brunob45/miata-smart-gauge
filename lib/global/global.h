@@ -29,6 +29,7 @@ struct GlobalVars
         float vetable[16 * 16];
         uint16_t rpm_table[16];
         int16_t map_table[16];
+        bool ve_updated;
     } ms;
 
     struct

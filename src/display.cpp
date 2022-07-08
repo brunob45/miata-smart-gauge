@@ -10,8 +10,6 @@
 namespace
 {
 THD_WORKING_AREA(waThdDisplay, 4 * 256);
-THD_WORKING_AREA(waThdBacklight, 4 * 256);
-thread_t* tp;
 
 DMAMEM uint16_t tft_frame_buffer0[240 * 320];
 DMAMEM uint16_t tft_frame_buffer1[240 * 320];
@@ -44,15 +42,36 @@ void updateDisplay()
     else
         tft.setFrameBuffer(tft_frame_buffer0);
 }
+
+uint16_t updateBrightness()
+{
+    uint16_t lumi = analogRead(A6);
+    analogWrite(6, (lumi > 512) ? 30 : 255);
+    return lumi;
+}
+
+void printNum(uint16_t num)
+{
+    if (num < 10) tft.print(' ');
+    if (num < 100) tft.print(' ');
+    if (num < 1000) tft.print(' ');
+    tft.print(num);
+}
 } // namespace
 
 THD_FUNCTION(ThreadDisplay, arg)
 {
     const float RATIO_BIN = 0.25f; // [0, 0.50]
+    bool afrIsValid = false, afrWasValid = false, trimEngaged = false;
+    uint32_t afrTimeValid = 0;
 
     GlobalVars* pGV = (GlobalVars*)arg;
 
     get565cmap();
+
+    pinMode(A6, INPUT); // Night lights input
+    pinMode(6, OUTPUT); // Brightness contol pin
+    analogWrite(6, 0);  // Turn off brightness
 
     tft.begin(70e6);
     tft.setFrameBuffer(tft_frame_buffer0);
@@ -63,13 +82,17 @@ THD_FUNCTION(ThreadDisplay, arg)
     tft.updateScreenAsync();
     tft.waitUpdateAsyncComplete();
 
-    chEvtSignal(tp, EVENT_MASK(1)); // Display is ready, enable backlight
-
     // Wait 2s for boot screen
-    chThdSleepMilliseconds(2000);
+    for(int i = 0; i < 20; i++)
+    {
+        pGV->lumi = updateBrightness();
+        chThdSleepMilliseconds(100);
+    }
 
     for (;;)
     {
+        pGV->lumi = updateBrightness();
+
         int x, y, x2, y2;
         for (x = 1; x < 15; x++)
         {
@@ -128,36 +151,33 @@ THD_FUNCTION(ThreadDisplay, arg)
 
         tft.setTextSize(4);
         tft.setTextColor(ILI9341_GREENYELLOW, ILI9341_BLACK);
+
         tft.setCursor(40, 6);
-
-        uint16_t val = pGV->ms.rpm;
-        if (val < 10) tft.print(' ');
-        if (val < 100) tft.print(' ');
-        if (val < 1000) tft.print(' ');
-        tft.print(val);
-
+        printNum(pGV->ms.rpm);
         tft.print('|');
+        printNum(pGV->ms.map);
 
-        val = pGV->ms.map;
-        if (val < 10) tft.print(' ');
-        if (val < 100) tft.print(' ');
-        if (val < 1000) tft.print(' ');
-        tft.print(val);
+        afrIsValid = (pGV->ms.afrtgt > 0) &&
+                     (pGV->ms.pw1 > 0) &&
+                     (pGV->ms.afr > 8) &&
+                     (pGV->ms.clt > 1500); // 150.0F = 65C
+        if (afrIsValid && !afrWasValid)
+        {
+            afrTimeValid = millis();
+        }
+        afrWasValid = afrIsValid;
+        trimEngaged = afrIsValid && (millis() - afrTimeValid) > 5000;
+
+        float error = 1000;
+        if (trimEngaged)
+        {
+            error = 1.0f * pGV->ms.afr * pGV->ms.egocor / pGV->ms.afrtgt;
+        }
 
         tft.setCursor(40, 40);
-        val = 0.001f * pGV->ms.afr * pGV->ms.egocor;
-        if (val < 10) tft.print(' ');
-        if (val < 100) tft.print(' ');
-        if (val < 1000) tft.print(' ');
-        tft.print(val);
-        
+        printNum(error);
         tft.print('|');
-
-        val = pGV->ms.egocor;
-        if (val < 10) tft.print(' ');
-        if (val < 100) tft.print(' ');
-        if (val < 1000) tft.print(' ');
-        tft.print(val);
+        printNum(trimEngaged);
 
         tft.setTextSize(1);
         for (int j = 0; j < 16; j++)
@@ -166,13 +186,31 @@ THD_FUNCTION(ThreadDisplay, arg)
             {
                 const uint8_t val = pGV->ms.vetable[i + j * 16];
                 if ((i == x || i == x2) && (j == y || j == y2))
+                {
                     tft.setTextColor(ILI9341_BLACK, ILI9341_YELLOW);
+                    // if (error > 1020) // 102%
+                    // {
+                    //     val = pGV->ms.vetable[i + j * 16] += 1;
+                    //     pGV->ms.ve_updated = true;
+                    // }
+                    // else if (error < 980) // 98%
+                    // {
+                    //     val = pGV->ms.vetable[i + j * 16] -= 1;
+                    //     pGV->ms.ve_updated = true;
+                    // }
+                }
                 else if (val < 98)
+                {
                     tft.setTextColor(ILI9341_WHITE, ILI9341_RED);
+                }
                 else if (val > 102)
+                {
                     tft.setTextColor(ILI9341_WHITE, ILI9341_DARKCYAN);
+                }
                 else
+                {
                     tft.setTextColor(ILI9341_WHITE, ILI9341_DARKGREEN);
+                }
 
                 tft.setCursor(20 * i, -10 * j + 230);
                 if (val < 10) tft.print(' ');
@@ -184,29 +222,8 @@ THD_FUNCTION(ThreadDisplay, arg)
     }
 }
 
-THD_FUNCTION(ThreadBacklight, arg)
-{
-    GlobalVars* pGV = (GlobalVars*)arg;
-
-    tp = chThdGetSelfX();
-    chEvtWaitAny(ALL_EVENTS); // Wait until display is ready
-
-    pinMode(6, OUTPUT); // Brightness contol pin
-    pinMode(A6, INPUT); // Night lights input
-
-    analogWrite(6, 0); // Turn off brightness
-
-    for (;;)
-    {
-        pGV->lumi = analogRead(A6);
-        analogWrite(6, (pGV->lumi > 512) ? 30 : 255);
-        chThdSleepMilliseconds(100);
-    }
-}
-
 int display_init(int prio, void* arg)
 {
     chThdCreateStatic(waThdDisplay, sizeof(waThdDisplay), prio++, ThreadDisplay, arg);
-    chThdCreateStatic(waThdBacklight, sizeof(waThdBacklight), prio++, ThreadBacklight, arg);
-    return 2;
+    return 1;
 }

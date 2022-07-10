@@ -10,9 +10,50 @@ namespace
 const float RATIO_BIN = 0.25f; // [0, 0.50]
 bool afrIsValid = false, afrWasValid = false;
 uint32_t afrTimeValid = 0;
+int16_t mapHistory[16];
+
+void update(int x, int y, bool execute)
+{
+    const int THLD = 20;
+    const int VE_MIN = 90, VE_MAX = 110;
+    if (execute)
+    {
+        const int index = x + y * 16;
+        int new_trim = GV.ltt.trim[index] + (GV.ltt.error > 1) ? 1 : -1;
+        if (new_trim >= THLD && GV.ms.vetable[index] < VE_MAX)
+        {
+            ++GV.ms.vetable[index];
+            new_trim -= THLD;
+        }
+        if (new_trim <= -THLD && GV.ms.vetable[index] > VE_MIN)
+        {
+            --GV.ms.vetable[index];
+            new_trim += THLD;
+        }
+        if (abs(new_trim) < 100)
+        {
+            GV.ltt.trim[index] = new_trim;
+        }
+    }
+}
 
 void updateLongTermTrim()
 {
+    bool accel = false;
+    for (int i = 0; i < 16; i++)
+    {
+        if (abs(mapHistory[i] - GV.ms.map) > (2 * i + 30))
+        {
+            accel = true;
+        }
+    }
+    GV.ltt.accelDetected = accel;
+    for (int i = 0; i < 15; i++)
+    {
+        mapHistory[i] = mapHistory[i + 1];
+    }
+    mapHistory[15] = GV.ms.map;
+
     int x, y, x2, y2;
     for (x = 1; x < 15; x++)
     {
@@ -74,13 +115,15 @@ void updateLongTermTrim()
     afrIsValid = (GV.ms.afrtgt > 0) &&
                  (GV.ms.pw1 > 0) &&
                  (GV.ms.afr > 8) &&
-                 (GV.ms.clt > 1500); // 150.0F = 65C
+                 (GV.ms.clt > 1500) && // 150.0F = 65C
+                 (!accel);
+
     if (afrIsValid && !afrWasValid)
     {
         afrTimeValid = millis();
     }
     afrWasValid = afrIsValid;
-    GV.ltt.engaged = afrIsValid && (millis() - afrTimeValid) > 5000;
+    GV.ltt.engaged = afrIsValid && (millis() - afrTimeValid) > 2000;
 
     if (GV.ltt.engaged)
     {
@@ -89,6 +132,14 @@ void updateLongTermTrim()
     else
     {
         GV.ltt.error = 1.0f;
+    }
+
+    if (abs(GV.ltt.error - 1) > 0.2f)
+    {
+        update(x, y, true);
+        update(x2, y, x != x2);
+        update(x, y2, y != y2);
+        update(x2, y2, x != x2 && y != y2);
     }
 }
 } // namespace

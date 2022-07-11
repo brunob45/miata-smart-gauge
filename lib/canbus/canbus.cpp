@@ -7,145 +7,23 @@
 
 namespace
 {
+const uint32_t CANBUS_TIMEOUT = 2000;
+const uint32_t CANBUS_SPEED = 500000;
+const uint8_t MY_CAN_ID = 5;
+
+FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16> CANbus;
+bool wasConnected = false;
+elapsedMillis last_frame = CANBUS_TIMEOUT;
+bool initDone = false;
+uint8_t initStep = 0;
+uint8_t initIndex = 0;
+bool requestPending = false;
+
 const float RATIO_BIN = 0.25f; // [0, 0.50]
 bool afrIsValid = false, afrWasValid = false;
 uint32_t afrTimeValid = 0;
 int16_t mapHistory[16];
 
-void update(int x, int y, bool execute)
-{
-    const int THLD = 20;
-    const int VE_MIN = 90, VE_MAX = 110;
-    if (execute)
-    {
-        const int index = x + y * 16;
-        int new_trim = GV.ltt.trim[index] + (GV.ltt.error > 1) ? 1 : -1;
-        if (new_trim >= THLD && GV.ms.vetable[index] < VE_MAX)
-        {
-            ++GV.ms.vetable[index];
-            new_trim -= THLD;
-        }
-        if (new_trim <= -THLD && GV.ms.vetable[index] > VE_MIN)
-        {
-            --GV.ms.vetable[index];
-            new_trim += THLD;
-        }
-        if (abs(new_trim) < 100)
-        {
-            GV.ltt.trim[index] = new_trim;
-        }
-    }
-}
-
-void updateLongTermTrim()
-{
-    bool accel = false;
-    for (int i = 0; i < 16; i++)
-    {
-        if (abs(mapHistory[i] - GV.ms.map) > (2 * i + 30))
-        {
-            accel = true;
-        }
-    }
-    GV.ltt.accelDetected = accel;
-    for (int i = 0; i < 15; i++)
-    {
-        mapHistory[i] = mapHistory[i + 1];
-    }
-    mapHistory[15] = GV.ms.map;
-
-    int x, y, x2, y2;
-    for (x = 1; x < 15; x++)
-    {
-        if (GV.ms.rpm <= GV.ms.rpm_table[x])
-            break;
-    }
-    {
-        float rpm1 = GV.ms.rpm_table[x - 1];
-        float rpm2 = GV.ms.rpm_table[x];
-        float ax = (GV.ms.rpm - rpm1) / (rpm2 - rpm1);
-        if (ax <= RATIO_BIN)
-        {
-            // value near rpm1
-            x = x - 1;
-            x2 = x;
-        }
-        else if (ax >= (1 - RATIO_BIN))
-        {
-            // value near rpm2
-            x2 = x;
-        }
-        else
-        {
-            // value in the middle
-            x2 = x;
-            x = x - 1;
-        }
-    }
-
-    for (y = 1; y < 15; y++)
-    {
-        if (GV.ms.map <= GV.ms.map_table[y])
-            break;
-    }
-    {
-        float map1 = GV.ms.map_table[y - 1];
-        float map2 = GV.ms.map_table[y];
-        float ay = (GV.ms.map - map1) / (map2 - map1);
-        if (ay <= RATIO_BIN)
-        {
-            y = y - 1;
-            y2 = y;
-        }
-        else if (ay >= (1 - RATIO_BIN))
-        {
-            y2 = y;
-        }
-        else
-        {
-            y2 = y;
-            y = y - 1;
-        }
-    }
-    GV.ltt.x[0] = x;
-    GV.ltt.x[1] = x2;
-    GV.ltt.y[0] = y;
-    GV.ltt.y[1] = y2;
-
-    afrIsValid = (GV.ms.afrtgt > 0) &&
-                 (GV.ms.pw1 > 0) &&
-                 (GV.ms.afr > 8) &&
-                 (GV.ms.clt > 1500) && // 150.0F = 65C
-                 (!accel);
-
-    if (afrIsValid && !afrWasValid)
-    {
-        afrTimeValid = millis();
-    }
-    afrWasValid = afrIsValid;
-    GV.ltt.engaged = afrIsValid && (millis() - afrTimeValid) > 2000;
-
-    if (GV.ltt.engaged)
-    {
-        GV.ltt.error = GV.ms.egocor / 1000.0f * GV.ms.afr / GV.ms.afrtgt;
-    }
-    else
-    {
-        GV.ltt.error = 1.0f;
-    }
-
-    if (abs(GV.ltt.error - 1) > 0.2f)
-    {
-        update(x, y, true);
-        update(x2, y, x != x2);
-        update(x, y2, y != y2);
-        update(x2, y2, x != x2 && y != y2);
-    }
-}
-} // namespace
-
-namespace CanBus
-{
 enum class MSG_TYPE : uint8_t
 {
     MSG_CMD = 0,    // A 'poke' message to deposit data into memory.
@@ -258,21 +136,194 @@ struct msg_header_t
     }
 };
 
-const uint32_t CANBUS_TIMEOUT = 2000;
-const uint32_t CANBUS_SPEED = 500000;
-const uint8_t MY_CAN_ID = 5;
-
-namespace
+void send_command(uint8_t id,
+                  uint8_t table,
+                  uint16_t offset,
+                  uint8_t value)
 {
-static FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16> CANbus;
-bool wasConnected = false;
-elapsedMillis last_frame = CANBUS_TIMEOUT;
-bool initDone = false;
-uint8_t initStep = 0;
-uint8_t index = 0;
-bool requestPending = false;
+    msg_header_t header{
+        .cob_id = 0,
+        .table = table,
+        .to_id = id,
+        .from_id = MY_CAN_ID,
+        .msg_type = MSG_TYPE::MSG_CMD,
+        .offset = offset,
+    };
+
+    CAN_message_t msg;
+    msg.id = header.pack();
+    msg.flags.extended = 1;
+    msg.len = 1;
+    msg.buf[0] = value;
+
+    CANbus.write(msg);
+}
+
+void send_request(uint8_t id,
+                  uint8_t table,
+                  uint16_t offset,
+                  uint8_t lenght)
+{
+    msg_header_t header{
+        .cob_id = 0,
+        .table = table,
+        .to_id = id,
+        .from_id = MY_CAN_ID,
+        .msg_type = MSG_TYPE::MSG_REQ,
+        .offset = offset,
+    };
+
+    CAN_message_t msg;
+    msg.id = header.pack();
+    msg.flags.extended = 1;
+    msg.len = 3;
+    msg.buf[0] = table;
+    msg.buf[1] = uint8_t(offset >> 3);
+    msg.buf[2] = uint8_t(((offset << 5) & 0xE0) | lenght);
+
+    CANbus.write(msg);
+    requestPending = true;
+}
+
+void update(int x, int y, bool execute)
+{
+    const int THLD = 20;
+    const int VE_MIN = 90, VE_MAX = 110;
+    if (execute)
+    {
+        const int index = x + y * 16;
+        int new_trim = GV.ltt.trim[index] + (GV.ltt.error > 1) ? 1 : -1;
+        if (new_trim >= THLD && GV.ms.vetable[index] < VE_MAX)
+        {
+            ++GV.ms.vetable[index];
+            send_command(0, 9, 256 + x + y * 16, GV.ms.vetable[index]);
+            new_trim -= THLD;
+        }
+        if (new_trim <= -THLD && GV.ms.vetable[index] > VE_MIN)
+        {
+            --GV.ms.vetable[index];
+            send_command(0, 9, 256 + x + y * 16, GV.ms.vetable[index]);
+            new_trim += THLD;
+        }
+        if (abs(new_trim) < 100)
+        {
+            GV.ltt.trim[index] = new_trim;
+        }
+    }
+}
+
+void updateLongTermTrim()
+{
+    bool accel = false;
+    for (int i = 0; i < 16; i++)
+    {
+        if (abs(mapHistory[i] - GV.ms.map) > (315 - i * 15))
+        {
+            accel = true;
+        }
+        if (i < 15)
+        {
+            mapHistory[i] = mapHistory[i + 1];
+        }
+        else
+        {
+            mapHistory[i] = GV.ms.map;
+        }
+    }
+    GV.ltt.accelDetected = accel;
+
+    int x, y, x2, y2;
+    for (x = 1; x < 15; x++)
+    {
+        if (GV.ms.rpm <= GV.ms.rpm_table[x])
+            break;
+    }
+    {
+        float rpm1 = GV.ms.rpm_table[x - 1];
+        float rpm2 = GV.ms.rpm_table[x];
+        float ax = (GV.ms.rpm - rpm1) / (rpm2 - rpm1);
+        if (ax <= RATIO_BIN)
+        {
+            // value near rpm1
+            x = x - 1;
+            x2 = x;
+        }
+        else if (ax >= (1 - RATIO_BIN))
+        {
+            // value near rpm2
+            x2 = x;
+        }
+        else
+        {
+            // value in the middle
+            x2 = x;
+            x = x - 1;
+        }
+    }
+
+    for (y = 1; y < 15; y++)
+    {
+        if (GV.ms.map <= GV.ms.map_table[y])
+            break;
+    }
+    {
+        float map1 = GV.ms.map_table[y - 1];
+        float map2 = GV.ms.map_table[y];
+        float ay = (GV.ms.map - map1) / (map2 - map1);
+        if (ay <= RATIO_BIN)
+        {
+            y = y - 1;
+            y2 = y;
+        }
+        else if (ay >= (1 - RATIO_BIN))
+        {
+            y2 = y;
+        }
+        else
+        {
+            y2 = y;
+            y = y - 1;
+        }
+    }
+    GV.ltt.x[0] = x;
+    GV.ltt.x[1] = x2;
+    GV.ltt.y[0] = y;
+    GV.ltt.y[1] = y2;
+
+    afrIsValid = (GV.ms.afrtgt > 0) &&
+                 (GV.ms.pw1 > 0) &&
+                 (GV.ms.afr > 8) &&
+                 (GV.ms.rpm > 500) &&
+                 (GV.ms.clt > 1500); // 150.0F = 65C
+
+    if (afrIsValid && !afrWasValid)
+    {
+        afrTimeValid = millis();
+    }
+    afrWasValid = afrIsValid;
+    GV.ltt.engaged = afrIsValid && (millis() - afrTimeValid) > 2000;
+
+    if (GV.ltt.engaged)
+    {
+        GV.ltt.error = GV.ms.egocor / 1000.0f * GV.ms.afr / GV.ms.afrtgt;
+    }
+    else
+    {
+        GV.ltt.error = 1.0f;
+    }
+
+    // if (abs(GV.ltt.error - 1) > 0.2f)
+    // {
+    //     update(x, y, true);
+    //     update(x2, y, x != x2);
+    //     update(x, y2, y != y2);
+    //     update(x2, y2, x != x2 && y != y2);
+    // }
+}
 } // namespace
 
+namespace CanBus
+{
 void init()
 {
     // Enable CAN transceiver
@@ -321,32 +372,6 @@ bool rx_broadcast(const CAN_message_t& msg)
     }
 }
 
-void send_request(uint8_t id,
-                  uint8_t table,
-                  uint16_t offset,
-                  uint8_t lenght)
-{
-    msg_header_t header{
-        .cob_id = 0,
-        .table = table,
-        .to_id = id,
-        .from_id = MY_CAN_ID,
-        .msg_type = MSG_TYPE::MSG_REQ,
-        .offset = offset,
-    };
-
-    CAN_message_t msg;
-    msg.id = header.pack();
-    msg.flags.extended = 1;
-    msg.len = 3;
-    msg.buf[0] = table;
-    msg.buf[1] = uint8_t(offset >> 3);
-    msg.buf[2] = uint8_t(((offset << 5) & 0xE0) | lenght);
-
-    CANbus.write(msg);
-    requestPending = true;
-}
-
 bool rx_command(const CAN_message_t& msg)
 {
     msg_header_t header;
@@ -355,19 +380,6 @@ bool rx_command(const CAN_message_t& msg)
     {
         return false;
     }
-
-    // if (msg_type == MSG_TYPE::MSG_XTND)
-    // {
-    //     msg_type = (MSG_TYPE)msg.buf[0];
-    // }
-
-    // header.println(Serial);
-    // for (int i = 0; i < msg.len; i++)
-    // {
-    //     Serial.print(msg.buf[i], HEX);
-    //     Serial.print(',');
-    // }
-    // Serial.println();
 
     switch (header.msg_type)
     {
@@ -487,26 +499,26 @@ void update()
         switch (initStep)
         {
         case 0:
-            send_request(0, 9, 256 + (index * 8), 8);
-            if (++index >= (256 / 8)) // 256 bytes, 8 bytes per msg
+            send_request(0, 9, 256 + (initIndex * 8), 8);
+            if (++initIndex >= (256 / 8)) // 256 bytes, 8 bytes per msg
             {
-                index = 0;
+                initIndex = 0;
                 ++initStep;
             }
             break;
         case 1:
-            send_request(0, 9, 800 + (index * 8), 8);
-            if (++index >= (16 / 4)) // 16 int, 4 int per msg
+            send_request(0, 9, 800 + (initIndex * 8), 8);
+            if (++initIndex >= (16 / 4)) // 16 int, 4 int per msg
             {
-                index = 0;
+                initIndex = 0;
                 ++initStep;
             }
             break;
         case 2:
-            send_request(0, 9, 896 + (index * 8), 8);
-            if (++index >= (16 / 4)) // 16 int, 4 int per msg
+            send_request(0, 9, 896 + (initIndex * 8), 8);
+            if (++initIndex >= (16 / 4)) // 16 int, 4 int per msg
             {
-                index = 0;
+                initIndex = 0;
                 ++initStep;
             }
             break;

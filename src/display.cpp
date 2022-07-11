@@ -112,7 +112,16 @@ THD_FUNCTION(ThreadDisplay, arg)
         tft.setCursor(40, 40);
         printNum(pGV->ltt.error * 1000);
         tft.print('|');
-        printNum(pGV->ltt.engaged);
+        printNum(pGV->ms.clt);
+
+        if (pGV->ltt.engaged)
+        {
+            tft.fillCircle(320-10, 20, 4, ILI9341_GREEN);
+        }
+        if (pGV->ltt.accelDetected)
+        {
+            tft.fillCircle(320-10, 30, 4, ILI9341_YELLOW);
+        }
 
         tft.setTextSize(1);
         for (int j = 0; j < 16; j++)

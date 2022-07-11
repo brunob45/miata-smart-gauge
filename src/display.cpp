@@ -118,9 +118,17 @@ THD_FUNCTION(ThreadDisplay, arg)
         {
             tft.fillCircle(320-10, 20, 4, ILI9341_GREEN);
         }
+        else
+        {
+            tft.drawCircle(320-10, 20, 4, ILI9341_GREEN);
+        }
         if (pGV->ltt.accelDetected)
         {
             tft.fillCircle(320-10, 30, 4, ILI9341_YELLOW);
+        }
+        else
+        {
+            tft.drawCircle(320-10, 30, 4, ILI9341_YELLOW);
         }
 
         tft.setTextSize(1);

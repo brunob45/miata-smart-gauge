@@ -290,8 +290,7 @@ void updateLongTermTrim()
     GV.ltt.y[0] = y;
     GV.ltt.y[1] = y2;
 
-    afrIsValid = (GV.ms.afrtgt > 0) &&
-                 (GV.ms.pw1 > 0) &&
+    afrIsValid = (GV.ms.pw1 > 0) &&
                  (GV.ms.afr > 8) &&
                  (GV.ms.rpm > 500) &&
                  (GV.ms.clt > 1500); // 150.0F = 65C
@@ -303,7 +302,7 @@ void updateLongTermTrim()
     afrWasValid = afrIsValid;
     GV.ltt.engaged = afrIsValid && (millis() - afrTimeValid) > 2000;
 
-    if (GV.ltt.engaged)
+    if (GV.ms.afrtgt > 0)
     {
         GV.ltt.error = GV.ms.egocor / 1000.0f * GV.ms.afr / GV.ms.afrtgt;
     }
@@ -312,7 +311,7 @@ void updateLongTermTrim()
         GV.ltt.error = 1.0f;
     }
 
-    // if (abs(GV.ltt.error - 1) > 0.2f)
+    // if (GV.ltt.engaged && abs(GV.ltt.error - 1) > 0.2f)
     // {
     //     update(x, y, true);
     //     update(x2, y, x != x2);

@@ -190,30 +190,22 @@ void send_request(uint8_t id,
     requestPending = true;
 }
 
-void update(int x, int y, bool execute)
+void update(int x, int y, int error, bool execute)
 {
-    const int THLD = 20;
-    const int VE_MIN = 90, VE_MAX = 110;
+    const int VE_MIN = 85, VE_MAX = 115;
     if (execute)
     {
         const int index = x + y * 16;
-        int new_trim = GV.ltt.trim[index] + (GV.ltt.error > 1) ? 1 : -1;
-        uint8_t ve = GV.ms.vetable[index];
-        if (new_trim >= THLD && ve < VE_MAX)
+        float ve = GV.ms.vetable[index];
+        if (error < 0.97 && ve > VE_MIN)
         {
-            ++ve;
+            ve -= 0.05f;
             send_command(0, 9, 256 + x + y * 16, ve);
-            new_trim -= THLD;
         }
-        if (new_trim <= -THLD && ve > VE_MIN)
+        if (error > 1.02 && ve < VE_MAX)
         {
-            --ve;
+            ve += 0.1f;
             send_command(0, 9, 256 + x + y * 16, ve);
-            new_trim += THLD;
-        }
-        if (abs(new_trim) < 100)
-        {
-            GV.ltt.trim[index] = new_trim;
         }
         GV.ms.vetable[index] = ve;
     }
@@ -284,9 +276,9 @@ void updateLongTermTrim()
     GV.ltt.y[1] = y2;
 
     afrIsValid = (GV.ms.pw1 > 0) &&
-                 (GV.ms.afr > 8) &&
-                 (GV.ms.rpm > 500) &&
-                 (GV.ms.clt > 650) && // 65.0C
+                 (GV.ms.afr > 100) && // 10.0 afr
+                 (GV.ms.rpm > 500) && // 500 rpm
+                 (GV.ms.clt > 650) && // 65.0 C
                  (!accel);
 
     if (afrIsValid && !afrWasValid)
@@ -305,12 +297,12 @@ void updateLongTermTrim()
         GV.ltt.error = 1.0f;
     }
 
-    if (GV.ltt.engaged && abs(GV.ltt.error - 1) > 0.2f)
+    if (GV.ltt.engaged)
     {
-        update(x, y, true);
-        update(x2, y, x != x2);
-        update(x, y2, y != y2);
-        update(x2, y2, x != x2 && y != y2);
+        update(x, y, GV.ltt.error, true);
+        update(x2, y, GV.ltt.error, x != x2);
+        update(x, y2, GV.ltt.error, y != y2);
+        update(x2, y2, GV.ltt.error, x != x2 && y != y2);
     }
 }
 } // namespace

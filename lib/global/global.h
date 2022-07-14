@@ -27,7 +27,7 @@ struct GlobalVars
         int16_t sensors2;
         int16_t knk_rtd;
 
-        uint8_t vetable[16 * 16];
+        float vetable[16 * 16];
         uint16_t rpm_table[16];
         int16_t map_table[16];
     } ms;
@@ -38,7 +38,6 @@ struct GlobalVars
         bool accelDetected;
         float error;
         int x[2], y[2];
-        int8_t trim[16 * 16];
     } ltt;
 
     struct

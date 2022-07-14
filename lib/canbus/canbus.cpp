@@ -22,7 +22,12 @@ bool requestPending = false;
 const float RATIO_BIN = 0.25f; // [0, 0.50]
 bool afrIsValid = false, afrWasValid = false;
 uint32_t afrTimeValid = 0;
-int16_t mapHistory[16];
+uint16_t last_pw = 0;
+
+inline int16_t F_TO_C(int16_t x)
+{
+    return 5.0f * ((x)-320) / 9.0f;
+}
 
 enum class MSG_TYPE : uint8_t
 {
@@ -193,43 +198,31 @@ void update(int x, int y, bool execute)
     {
         const int index = x + y * 16;
         int new_trim = GV.ltt.trim[index] + (GV.ltt.error > 1) ? 1 : -1;
-        if (new_trim >= THLD && GV.ms.vetable[index] < VE_MAX)
+        uint8_t ve = GV.ms.vetable[index];
+        if (new_trim >= THLD && ve < VE_MAX)
         {
-            ++GV.ms.vetable[index];
-            send_command(0, 9, 256 + x + y * 16, GV.ms.vetable[index]);
+            ++ve;
+            send_command(0, 9, 256 + x + y * 16, ve);
             new_trim -= THLD;
         }
-        if (new_trim <= -THLD && GV.ms.vetable[index] > VE_MIN)
+        if (new_trim <= -THLD && ve > VE_MIN)
         {
-            --GV.ms.vetable[index];
-            send_command(0, 9, 256 + x + y * 16, GV.ms.vetable[index]);
+            --ve;
+            send_command(0, 9, 256 + x + y * 16, ve);
             new_trim += THLD;
         }
         if (abs(new_trim) < 100)
         {
             GV.ltt.trim[index] = new_trim;
         }
+        GV.ms.vetable[index] = ve;
     }
 }
 
 void updateLongTermTrim()
 {
-    bool accel = false;
-    for (int i = 0; i < 16; i++)
-    {
-        if (abs(mapHistory[i] - GV.ms.map) > (315 - i * 15))
-        {
-            accel = true;
-        }
-        if (i < 15)
-        {
-            mapHistory[i] = mapHistory[i + 1];
-        }
-        else
-        {
-            mapHistory[i] = GV.ms.map;
-        }
-    }
+    const bool accel = GV.ms.pw1 > (last_pw + 700);
+    last_pw = GV.ms.pw1;
     GV.ltt.accelDetected = accel;
 
     int x, y, x2, y2;
@@ -293,7 +286,8 @@ void updateLongTermTrim()
     afrIsValid = (GV.ms.pw1 > 0) &&
                  (GV.ms.afr > 8) &&
                  (GV.ms.rpm > 500) &&
-                 (GV.ms.clt > 1500); // 150.0F = 65C
+                 (GV.ms.clt > 650) && // 65.0C
+                 (!accel);
 
     if (afrIsValid && !afrWasValid)
     {
@@ -311,13 +305,13 @@ void updateLongTermTrim()
         GV.ltt.error = 1.0f;
     }
 
-    // if (GV.ltt.engaged && abs(GV.ltt.error - 1) > 0.2f)
-    // {
-    //     update(x, y, true);
-    //     update(x2, y, x != x2);
-    //     update(x, y2, y != y2);
-    //     update(x2, y2, x != x2 && y != y2);
-    // }
+    if (GV.ltt.engaged && abs(GV.ltt.error - 1) > 0.2f)
+    {
+        update(x, y, true);
+        update(x2, y, x != x2);
+        update(x, y2, y != y2);
+        update(x2, y2, x != x2 && y != y2);
+    }
 }
 } // namespace
 
@@ -340,29 +334,29 @@ bool rx_broadcast(const CAN_message_t& msg)
     switch (msg.id)
     {
     case 1512:
-        GV.ms.map = (msg.buf[0] << 8) | (msg.buf[1] << 0);
-        GV.ms.rpm = (msg.buf[2] << 8) | (msg.buf[3] << 0);
-        GV.ms.clt = (msg.buf[4] << 8) | (msg.buf[5] << 0);
-        GV.ms.tps = (msg.buf[6] << 8) | (msg.buf[7] << 0);
+        GV.ms.map = (msg.buf[0] << 8) | (msg.buf[1] << 0);         // 0.1 kPa
+        GV.ms.rpm = (msg.buf[2] << 8) | (msg.buf[3] << 0);         // 1 rpm
+        GV.ms.clt = F_TO_C((msg.buf[4] << 8) | (msg.buf[5] << 0)); // 0.1 deg F
+        GV.ms.tps = (msg.buf[6] << 8) | (msg.buf[7] << 0);         // 0.1 %
         return true;
     case 1513:
-        GV.ms.pw1 = (msg.buf[0] << 8) | (msg.buf[1] << 0);
-        GV.ms.pw2 = (msg.buf[2] << 8) | (msg.buf[3] << 0);
-        GV.ms.mat = (msg.buf[4] << 8) | (msg.buf[5] << 0);
-        GV.ms.adv = (msg.buf[6] << 8) | (msg.buf[7] << 0);
+        GV.ms.pw1 = (msg.buf[0] << 8) | (msg.buf[1] << 0);         // 1 us
+        GV.ms.pw2 = (msg.buf[2] << 8) | (msg.buf[3] << 0);         // 1 us
+        GV.ms.mat = F_TO_C((msg.buf[4] << 8) | (msg.buf[5] << 0)); // 0.1 deg F
+        GV.ms.adv = (msg.buf[6] << 8) | (msg.buf[7] << 0);         // 0.1 deg BTDC
         return true;
     case 1514:
-        GV.ms.afrtgt = msg.buf[0];
-        GV.ms.afr = msg.buf[1];
-        GV.ms.egocor = (msg.buf[2] << 8) | (msg.buf[3] << 0);
-        GV.ms.egt = (msg.buf[4] << 8) | (msg.buf[5] << 0);
-        GV.ms.pwseq = (msg.buf[6] << 8) | (msg.buf[7] << 0);
+        GV.ms.afrtgt = msg.buf[0];                                 // 1 AFR
+        GV.ms.afr = msg.buf[1];                                    // 1 AFR
+        GV.ms.egocor = (msg.buf[2] << 8) | (msg.buf[3] << 0);      // 0.1 %
+        GV.ms.egt = F_TO_C((msg.buf[4] << 8) | (msg.buf[5] << 0)); // 0.1 deg F
+        GV.ms.pwseq = (msg.buf[6] << 8) | (msg.buf[7] << 0);       // 1 us
         return true;
     case 1515:
-        GV.ms.batt = (msg.buf[0] << 8) | (msg.buf[1] << 0);
+        GV.ms.batt = (msg.buf[0] << 8) | (msg.buf[1] << 0); // 0.1 V
         GV.ms.sensors1 = (msg.buf[2] << 8) | (msg.buf[3] << 0);
         GV.ms.sensors2 = (msg.buf[4] << 8) | (msg.buf[5] << 0);
-        GV.ms.knk_rtd = (msg.buf[6] << 8) | (msg.buf[7] << 0);
+        GV.ms.knk_rtd = (msg.buf[6] << 8) | (msg.buf[7] << 0); // 0.1 deg
         updateLongTermTrim();
         return true;
     default:

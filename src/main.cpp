@@ -69,7 +69,7 @@ THD_FUNCTION(ThreadMain, arg)
         if (millis() - last_fault_change > 500)
         {
             // High coolant temperature
-            checkFault(&pGV->fault_code, 0, pGV->ms.clt > 2120, pGV->ms.clt <= 2000); // 100C & 93C
+            checkFault(&pGV->fault_code, 0, pGV->ms.clt > 1000, pGV->ms.clt <= 930); // 100C & 93C
 
             // Low oil pressure
             checkFault(&pGV->fault_code, 1, pGV->ms.sensors2 > 150, pGV->ms.sensors2 < 140);

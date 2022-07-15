@@ -192,20 +192,24 @@ void send_request(uint8_t id,
 
 void update(int x, int y, int error, bool execute)
 {
-    const int VE_MIN = 85, VE_MAX = 115;
     if (execute)
     {
         const int index = x + y * 16;
         float ve = GV.ms.vetable[index];
-        if (error < 0.97 && ve > VE_MIN)
+        if (error < 0.97)
         {
-            ve -= 0.05f;
-            send_command(0, 9, 256 + x + y * 16, ve);
+            // too much fuel, decrease VE
+            ve = max(ve - 0.05f, 85);
         }
-        if (error > 1.02 && ve < VE_MAX)
+        else if (error > 1.02)
         {
-            ve += 0.1f;
-            send_command(0, 9, 256 + x + y * 16, ve);
+            // too little fuel, increase VE
+            ve = min(ve + 0.1f, 115);
+        }
+        if (truncl(GV.ms.vetable[index] - 100) != truncl(ve - 100))
+        {
+            // truncate float value around 100 %
+            send_command(0, 9, 256 + index, truncl(ve - 100) + 100);
         }
         GV.ms.vetable[index] = ve;
     }

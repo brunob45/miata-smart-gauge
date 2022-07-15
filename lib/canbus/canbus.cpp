@@ -199,7 +199,7 @@ void update(int x, int y, int error, bool execute)
         if (error < 0.97)
         {
             // too much fuel, decrease VE
-            ve = max(ve - 0.05f, 85);
+            // ve = max(ve - 0.05f, 85);
         }
         else if (error > 1.02)
         {

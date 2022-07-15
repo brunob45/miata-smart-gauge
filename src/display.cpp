@@ -112,7 +112,7 @@ THD_FUNCTION(ThreadDisplay, arg)
         tft.setCursor(40, 40);
         printNum(pGV->ltt.error * 1000);
         tft.print('|');
-        printNum(pGV->ms.clt);
+        printNum(pGV->ms.egocor);
 
         if (pGV->ltt.engaged)
         {

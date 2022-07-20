@@ -136,21 +136,11 @@ THD_FUNCTION(ThreadDisplay, arg)
         {
             for (int i = 0; i < 16; i++)
             {
-                const uint8_t val = pGV->ms.vetable[i + j * 16];
+                const uint8_t val = int(pGV->ms.vetable[i + j * 16] * 100) % 100;
                 if ((i == pGV->ltt.x[0] || i == pGV->ltt.x[1]) &&
                     (j == pGV->ltt.y[0] || j == pGV->ltt.y[1]))
                 {
                     tft.setTextColor(ILI9341_BLACK, ILI9341_YELLOW);
-                    // if (error > 1020) // 102%
-                    // {
-                    //     val = pGV->ms.vetable[i + j * 16] += 1;
-                    //     pGV->ms.ve_updated = true;
-                    // }
-                    // else if (error < 980) // 98%
-                    // {
-                    //     val = pGV->ms.vetable[i + j * 16] -= 1;
-                    //     pGV->ms.ve_updated = true;
-                    // }
                 }
                 else if (val < 98)
                 {

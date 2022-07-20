@@ -199,17 +199,16 @@ void update(int x, int y, int error, bool execute)
         if (error < 0.97)
         {
             // too much fuel, decrease VE
-            // ve = max(ve - 0.05f, 85);
+            // ve = max(ve - 0.05, 85);
         }
         else if (error > 1.02)
         {
             // too little fuel, increase VE
-            ve = min(ve + 0.1f, 115);
+            ve = min(ve + 0.1, 115);
         }
-        if (truncl(GV.ms.vetable[index] - 100) != truncl(ve - 100))
+        if ((int)GV.ms.vetable[index] != (int)ve)
         {
-            // truncate float value around 100 %
-            send_command(0, 9, 256 + index, truncl(ve - 100) + 100);
+            send_command(0, 9, 256 + index, ve);
         }
         GV.ms.vetable[index] = ve;
     }

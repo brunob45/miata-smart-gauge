@@ -190,16 +190,16 @@ void send_request(uint8_t id,
     requestPending = true;
 }
 
-void update(int x, int y, int error, bool execute)
+void update(int x, int y, float error, bool execute)
 {
     if (execute)
     {
         const int index = x + y * 16;
         float ve = GV.ms.vetable[index];
-        if (error < 0.97)
+        if (error < 0.96)
         {
             // too much fuel, decrease VE
-            // ve = max(ve - 0.05, 85);
+            ve = max(ve - 0.05, 85);
         }
         else if (error > 1.02)
         {

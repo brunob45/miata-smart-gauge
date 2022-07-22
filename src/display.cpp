@@ -136,7 +136,7 @@ THD_FUNCTION(ThreadDisplay, arg)
         {
             for (int i = 0; i < 16; i++)
             {
-                const uint8_t val = int(pGV->ms.vetable[i + j * 16] * 100) % 100;
+                const uint8_t val = pGV->ms.vetable[i + j * 16];
                 if ((i == pGV->ltt.x[0] || i == pGV->ltt.x[1]) &&
                     (j == pGV->ltt.y[0] || j == pGV->ltt.y[1]))
                 {

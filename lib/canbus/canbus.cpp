@@ -206,9 +206,9 @@ void update(int x, int y, float error, bool execute)
             // too little fuel, increase VE
             ve = min(ve + 0.1, 115);
         }
-        if ((int)GV.ms.vetable[index] != (int)ve)
+        if (roundl(GV.ms.vetable[index]) != roundl(ve))
         {
-            send_command(0, 9, 256 + index, ve);
+            send_command(0, 9, 256 + index, roundl(ve));
         }
         GV.ms.vetable[index] = ve;
     }

@@ -107,7 +107,7 @@ THD_FUNCTION(ThreadDisplay, arg)
         tft.setCursor(40, 6);
         printNum(pGV->ms.rpm);
         tft.print('|');
-        printNum(pGV->ms.map);
+        printNum(pGV->ms.sensors2);
 
         tft.setCursor(40, 40);
         printNum(pGV->ltt.error * 1000);

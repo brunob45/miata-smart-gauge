@@ -116,19 +116,27 @@ THD_FUNCTION(ThreadDisplay, arg)
 
         if (pGV->ltt.engaged)
         {
-            tft.fillCircle(320-10, 20, 4, ILI9341_GREEN);
+            tft.fillCircle(320-10, 15, 4, ILI9341_GREEN);
         }
         else
         {
-            tft.drawCircle(320-10, 20, 4, ILI9341_GREEN);
+            tft.drawCircle(320-10, 15, 4, ILI9341_GREEN);
         }
         if (pGV->ltt.accelDetected)
         {
-            tft.fillCircle(320-10, 30, 4, ILI9341_YELLOW);
+            tft.fillCircle(320-10, 25, 4, ILI9341_YELLOW);
         }
         else
         {
-            tft.drawCircle(320-10, 30, 4, ILI9341_YELLOW);
+            tft.drawCircle(320-10, 25, 4, ILI9341_YELLOW);
+        }
+        if (pGV->temperature > 85)
+        {
+            tft.fillCircle(320-10, 35, 4, ILI9341_RED);
+        }
+        else
+        {
+            tft.drawCircle(320-10, 35, 4, ILI9341_RED);
         }
 
         tft.setTextSize(1);

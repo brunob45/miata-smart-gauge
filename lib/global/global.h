@@ -38,6 +38,7 @@ struct GlobalVars
         bool accelDetected;
         float error;
         int x[2], y[2];
+        uint8_t err[16 * 16];
     } ltt;
 
     struct

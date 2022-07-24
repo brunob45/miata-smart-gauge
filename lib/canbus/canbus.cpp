@@ -200,11 +200,17 @@ void update(int x, int y, float error, bool execute)
         {
             // too much fuel, decrease VE
             ve = max(ve - 0.05, 85);
+            GV.ltt.err[index] = error * 100;
         }
         else if (error > 1.02)
         {
             // too little fuel, increase VE
             ve = min(ve + 0.1, 115);
+            GV.ltt.err[index] = error * 100;
+        }
+        else
+        {
+            GV.ltt.err[index] = 100;
         }
         if (roundl(GV.ms.vetable[index]) != roundl(ve))
         {

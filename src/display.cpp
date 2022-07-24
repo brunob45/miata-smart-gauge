@@ -144,17 +144,22 @@ THD_FUNCTION(ThreadDisplay, arg)
         {
             for (int i = 0; i < 16; i++)
             {
-                const uint8_t val = pGV->ms.vetable[i + j * 16];
+                const uint8_t index = i + j * 16;
+                const uint8_t val = pGV->ms.vetable[index];
                 if ((i == pGV->ltt.x[0] || i == pGV->ltt.x[1]) &&
                     (j == pGV->ltt.y[0] || j == pGV->ltt.y[1]))
                 {
                     tft.setTextColor(ILI9341_BLACK, ILI9341_YELLOW);
                 }
-                else if (val < 98)
+                else if (pGV->ltt.err[index] == 0)
+                {
+                    tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
+                }
+                else if (pGV->ltt.err[index] < 100)
                 {
                     tft.setTextColor(ILI9341_WHITE, ILI9341_RED);
                 }
-                else if (val > 102)
+                else if (pGV->ltt.err[index] > 100)
                 {
                     tft.setTextColor(ILI9341_WHITE, ILI9341_DARKCYAN);
                 }

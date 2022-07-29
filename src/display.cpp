@@ -116,27 +116,27 @@ THD_FUNCTION(ThreadDisplay, arg)
 
         if (pGV->ltt.engaged)
         {
-            tft.fillCircle(320-10, 15, 4, ILI9341_GREEN);
+            tft.fillCircle(320-10, 20, 4, ILI9341_GREEN);
         }
         else
         {
-            tft.drawCircle(320-10, 15, 4, ILI9341_GREEN);
+            tft.drawCircle(320-10, 20, 4, ILI9341_GREEN);
         }
         if (pGV->ltt.accelDetected)
         {
-            tft.fillCircle(320-10, 25, 4, ILI9341_YELLOW);
+            tft.fillCircle(320-10, 35, 4, ILI9341_YELLOW);
         }
         else
         {
-            tft.drawCircle(320-10, 25, 4, ILI9341_YELLOW);
+            tft.drawCircle(320-10, 35, 4, ILI9341_YELLOW);
         }
         if (pGV->temperature > 85)
         {
-            tft.fillCircle(320-10, 35, 4, ILI9341_RED);
+            tft.fillCircle(320-10, 50, 4, ILI9341_RED);
         }
         else
         {
-            tft.drawCircle(320-10, 35, 4, ILI9341_RED);
+            tft.drawCircle(320-10, 50, 4, ILI9341_RED);
         }
 
         tft.setTextSize(1);
@@ -151,17 +151,17 @@ THD_FUNCTION(ThreadDisplay, arg)
                 {
                     tft.setTextColor(ILI9341_BLACK, ILI9341_YELLOW);
                 }
-                else if (pGV->ltt.err[index] == 0)
+                else if (pGV->ltt.err[index] == EGOERR::UNKNOWN)
                 {
                     tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
                 }
-                else if (pGV->ltt.err[index] < 100)
+                else if (pGV->ltt.err[index] == EGOERR::RICH)
+                {
+                    tft.setTextColor(ILI9341_WHITE, ILI9341_BLUE);
+                }
+                else if (pGV->ltt.err[index] == EGOERR::LEAN)
                 {
                     tft.setTextColor(ILI9341_WHITE, ILI9341_RED);
-                }
-                else if (pGV->ltt.err[index] > 100)
-                {
-                    tft.setTextColor(ILI9341_WHITE, ILI9341_DARKCYAN);
                 }
                 else
                 {

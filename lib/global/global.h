@@ -1,6 +1,14 @@
 #if !defined(DASH_GLOBAL_H)
 #define DASH_GLOBAL_H
 
+enum class EGOERR: uint8_t
+{
+    UNKNOWN = 0,
+    LEAN = 1,
+    RICH = 2,
+    OK = 3
+};
+
 struct GlobalVars
 {
     struct
@@ -38,7 +46,7 @@ struct GlobalVars
         bool accelDetected;
         float error;
         int x[2], y[2];
-        uint8_t err[16 * 16];
+        EGOERR err[16 * 16];
     } ltt;
 
     struct

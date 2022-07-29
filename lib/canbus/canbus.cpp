@@ -141,7 +141,7 @@ struct msg_header_t
     }
 };
 
-void send_command(uint8_t id,
+void send_value(uint8_t id,
                   uint8_t table,
                   uint16_t offset,
                   uint8_t value)
@@ -200,21 +200,21 @@ void update(int x, int y, float error, bool execute)
         {
             // too much fuel, decrease VE
             ve = max(ve - 0.05, 85);
-            GV.ltt.err[index] = error * 100;
+            GV.ltt.err[index] = EGOERR::RICH;
         }
         else if (error > 1.02)
         {
             // too little fuel, increase VE
             ve = min(ve + 0.1, 115);
-            GV.ltt.err[index] = error * 100;
+            GV.ltt.err[index] = EGOERR::LEAN;
         }
         else
         {
-            GV.ltt.err[index] = 100;
+            GV.ltt.err[index] = EGOERR::OK;
         }
         if (roundl(GV.ms.vetable[index]) != roundl(ve))
         {
-            send_command(0, 9, 256 + index, roundl(ve));
+            send_value(0, 9, 256 + index, roundl(ve));
         }
         GV.ms.vetable[index] = ve;
     }

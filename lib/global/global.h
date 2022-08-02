@@ -47,6 +47,7 @@ struct GlobalVars
         float error;
         int x[2], y[2];
         EGOERR err[16 * 16];
+        bool needBurn;
     } ltt;
 
     struct

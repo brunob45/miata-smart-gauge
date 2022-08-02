@@ -122,7 +122,7 @@ THD_FUNCTION(ThreadDisplay, arg)
         {
             tft.drawCircle(320-10, 20, 4, ILI9341_GREEN);
         }
-        if (pGV->ltt.accelDetected)
+        if (pGV->ltt.needBurn)
         {
             tft.fillCircle(320-10, 35, 4, ILI9341_YELLOW);
         }

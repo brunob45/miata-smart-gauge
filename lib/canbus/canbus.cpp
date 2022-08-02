@@ -18,7 +18,6 @@ bool initDone = false;
 uint8_t initStep = 0;
 uint8_t initIndex = 0;
 bool requestPending = false;
-bool needBurn = false;
 bool burnPending = false;
 
 const float RATIO_BIN = 0.25f; // [0, 0.50]
@@ -199,7 +198,6 @@ void send_burn(uint8_t id,
 
     CANbus.write(msg);
     burnPending = true;
-    needBurn = false;
 }
 
 void update(int x, int y, float error, bool execute)
@@ -227,7 +225,7 @@ void update(int x, int y, float error, bool execute)
         if (roundl(GV.ms.vetable[index]) != roundl(ve))
         {
             send_value(0, 9, 256 + index, roundl(ve));
-            needBurn = true;
+            GV.ltt.needBurn = true;
         }
         GV.ms.vetable[index] = ve;
     }
@@ -235,7 +233,7 @@ void update(int x, int y, float error, bool execute)
 
 void updateLongTermTrim()
 {
-    const bool accel = GV.ms.pw1 > (last_pw + 700);
+    const bool accel = abs((int)GV.ms.pw1 - (int)last_pw) > 600;
     last_pw = GV.ms.pw1;
     GV.ltt.accelDetected = accel;
 
@@ -297,9 +295,10 @@ void updateLongTermTrim()
     GV.ltt.y[0] = y;
     GV.ltt.y[1] = y2;
 
-    if ((GV.ms.pw1 == 0) && (needBurn))
+    if ((GV.ms.pw1 == 0) && (GV.ltt.needBurn))
     {
         send_burn(0, 9);
+        GV.ltt.needBurn = false;
     }
 
     afrIsValid = (GV.ms.pw1 > 0) &&

@@ -18,6 +18,8 @@ bool initDone = false;
 uint8_t initStep = 0;
 uint8_t initIndex = 0;
 bool requestPending = false;
+bool needBurn = false;
+bool burnPending = false;
 
 const float RATIO_BIN = 0.25f; // [0, 0.50]
 bool afrIsValid = false, afrWasValid = false;
@@ -52,7 +54,6 @@ enum class MSG_TYPE : uint8_t
 
 struct msg_header_t
 {
-    uint32_t cob_id;
     uint8_t table;
     uint8_t to_id;
     uint8_t from_id;
@@ -61,8 +62,6 @@ struct msg_header_t
 
     void decode(uint32_t can_id)
     {
-        cob_id = can_id;
-
         table = (can_id >> 3) & 0x0f;
         table |= ((can_id << 2) & 0x10); // add last bit to table index
 
@@ -72,25 +71,25 @@ struct msg_header_t
         offset = (can_id >> 18) & 0x3ff;
     }
 
-    uint32_t pack()
+    CAN_message_t get_msg()
     {
-        cob_id = 0;
+        CAN_message_t msg;
+        msg.id = 0;
 
-        cob_id |= ((uint32_t)table & 0x10) >> 2;
-        cob_id |= ((uint32_t)table & 0x0f) << 3;
-        cob_id |= ((uint32_t)to_id & 0x0f) << 7;
-        cob_id |= ((uint32_t)from_id & 0x0f) << 11;
-        cob_id |= ((uint32_t)msg_type & 0x07) << 15;
-        cob_id |= ((uint32_t)offset & 0x3ff) << 18;
+        msg.id |= ((uint32_t)table & 0x10) >> 2;
+        msg.id |= ((uint32_t)table & 0x0f) << 3;
+        msg.id |= ((uint32_t)to_id & 0x0f) << 7;
+        msg.id |= ((uint32_t)from_id & 0x0f) << 11;
+        msg.id |= ((uint32_t)msg_type & 0x07) << 15;
+        msg.id |= ((uint32_t)offset & 0x3ff) << 18;
 
-        return cob_id;
+        msg.flags.extended = 1;
+        return msg;
     }
 
     void print(Print& s)
     {
         s.print('{');
-        s.print(cob_id, HEX);
-        s.print(',');
         s.print(table);
         s.print(',');
         s.print(to_id);
@@ -142,12 +141,11 @@ struct msg_header_t
 };
 
 void send_value(uint8_t id,
-                  uint8_t table,
-                  uint16_t offset,
-                  uint8_t value)
+                uint8_t table,
+                uint16_t offset,
+                uint8_t value)
 {
     msg_header_t header{
-        .cob_id = 0,
         .table = table,
         .to_id = id,
         .from_id = MY_CAN_ID,
@@ -155,9 +153,7 @@ void send_value(uint8_t id,
         .offset = offset,
     };
 
-    CAN_message_t msg;
-    msg.id = header.pack();
-    msg.flags.extended = 1;
+    CAN_message_t msg = header.get_msg();
     msg.len = 1;
     msg.buf[0] = value;
 
@@ -167,10 +163,9 @@ void send_value(uint8_t id,
 void send_request(uint8_t id,
                   uint8_t table,
                   uint16_t offset,
-                  uint8_t lenght)
+                  uint8_t length)
 {
     msg_header_t header{
-        .cob_id = 0,
         .table = table,
         .to_id = id,
         .from_id = MY_CAN_ID,
@@ -178,21 +173,38 @@ void send_request(uint8_t id,
         .offset = offset,
     };
 
-    CAN_message_t msg;
-    msg.id = header.pack();
-    msg.flags.extended = 1;
+    CAN_message_t msg = header.get_msg();
     msg.len = 3;
     msg.buf[0] = table;
     msg.buf[1] = uint8_t(offset >> 3);
-    msg.buf[2] = uint8_t(((offset << 5) & 0xE0) | lenght);
+    msg.buf[2] = uint8_t(((offset << 5) & 0xE0) | length);
 
     CANbus.write(msg);
     requestPending = true;
 }
 
+void send_burn(uint8_t id,
+               uint8_t table)
+{
+    msg_header_t header{
+        .table = table,
+        .to_id = id,
+        .from_id = MY_CAN_ID,
+        .msg_type = MSG_TYPE::MSG_BURN,
+        .offset = 0,
+    };
+
+    CAN_message_t msg = header.get_msg();
+    msg.len = 0;
+
+    CANbus.write(msg);
+    burnPending = true;
+    needBurn = false;
+}
+
 void update(int x, int y, float error, bool execute)
 {
-    if (execute)
+    if (execute && !burnPending)
     {
         const int index = x + y * 16;
         float ve = GV.ms.vetable[index];
@@ -215,6 +227,7 @@ void update(int x, int y, float error, bool execute)
         if (roundl(GV.ms.vetable[index]) != roundl(ve))
         {
             send_value(0, 9, 256 + index, roundl(ve));
+            needBurn = true;
         }
         GV.ms.vetable[index] = ve;
     }
@@ -283,6 +296,11 @@ void updateLongTermTrim()
     GV.ltt.x[1] = x2;
     GV.ltt.y[0] = y;
     GV.ltt.y[1] = y2;
+
+    if ((GV.ms.pw1 == 0) && (needBurn))
+    {
+        send_burn(0, 9);
+    }
 
     afrIsValid = (GV.ms.pw1 > 0) &&
                  (GV.ms.afr > 100) && // 10.0 afr
@@ -370,6 +388,11 @@ bool rx_command(const CAN_message_t& msg)
 {
     msg_header_t header;
     header.decode(msg.id);
+    if (header.msg_type == MSG_TYPE::MSG_XTND)
+    {
+        header.msg_type = (MSG_TYPE)msg.buf[0];
+    }
+
     if (header.to_id != MY_CAN_ID)
     {
         return false;
@@ -381,7 +404,6 @@ bool rx_command(const CAN_message_t& msg)
     {
         msg_header_t rsp_header =
             {
-                .cob_id = 0,
                 .table = msg.buf[0],
                 .to_id = header.from_id,
                 .from_id = MY_CAN_ID,
@@ -389,9 +411,7 @@ bool rx_command(const CAN_message_t& msg)
                 .offset = (uint16_t)((msg.buf[2] >> 5) | ((uint16_t)msg.buf[1] << 3)),
             };
 
-        CAN_message_t rsp;
-        rsp.id = rsp_header.pack();
-        rsp.flags.extended = 1;
+        CAN_message_t rsp = rsp_header.get_msg();
         rsp.len = (uint8_t)(msg.buf[2] & 0x0f);
 
         if (header.table == 7)
@@ -456,7 +476,8 @@ bool rx_command(const CAN_message_t& msg)
         break;
     case MSG_TYPE::OUTMSG_RSP:
         break;
-    case MSG_TYPE::MSG_XTND:
+    case MSG_TYPE::MSG_BURNACK:
+        burnPending = false;
         break;
     default:
         break;

@@ -18,12 +18,12 @@ bool initDone = false;
 uint8_t initStep = 0;
 uint8_t initIndex = 0;
 bool requestPending = false;
-bool burnPending = false;
 
 const float RATIO_BIN = 0.25f; // [0, 0.50]
 bool afrIsValid = false, afrWasValid = false;
 uint32_t afrTimeValid = 0;
 uint16_t last_pw = 0;
+uint16_t last_map = 0;
 
 inline int16_t F_TO_C(int16_t x)
 {
@@ -197,12 +197,11 @@ void send_burn(uint8_t id,
     msg.len = 0;
 
     CANbus.write(msg);
-    burnPending = true;
 }
 
 void update(int x, int y, float error, bool execute)
 {
-    if (execute && !burnPending)
+    if (execute)
     {
         const int index = x + y * 16;
         float ve = GV.ms.vetable[index];
@@ -233,9 +232,13 @@ void update(int x, int y, float error, bool execute)
 
 void updateLongTermTrim()
 {
-    const bool accel = abs((int)GV.ms.pw1 - (int)last_pw) > 600;
+    const bool accel = GV.ms.pw1 > (last_pw + 700);
     last_pw = GV.ms.pw1;
-    GV.ltt.accelDetected = accel;
+
+    const bool decel = GV.ms.map < (last_map - 50);
+    last_map = GV.ms.map;
+    
+    GV.ltt.accelDetected = accel || decel;
 
     int x, y, x2, y2;
     for (x = 1; x < 15; x++)
@@ -305,7 +308,7 @@ void updateLongTermTrim()
                  (GV.ms.afr > 100) && // 10.0 afr
                  (GV.ms.rpm > 500) && // 500 rpm
                  (GV.ms.clt > 650) && // 65.0 C
-                 (!accel);
+                 (!GV.ltt.accelDetected);
 
     if (afrIsValid && !afrWasValid)
     {
@@ -476,7 +479,6 @@ bool rx_command(const CAN_message_t& msg)
     case MSG_TYPE::OUTMSG_RSP:
         break;
     case MSG_TYPE::MSG_BURNACK:
-        burnPending = false;
         break;
     default:
         break;

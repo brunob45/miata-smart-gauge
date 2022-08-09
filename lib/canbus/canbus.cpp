@@ -23,7 +23,7 @@ const float RATIO_BIN = 0.25f; // [0, 0.50]
 bool afrIsValid = false, afrWasValid = false;
 uint32_t afrTimeValid = 0;
 uint16_t last_pw = 0;
-uint16_t last_map = 0;
+int16_t last_map = 0;
 
 inline int16_t F_TO_C(int16_t x)
 {

@@ -18,6 +18,7 @@ bool initDone = false;
 uint8_t initStep = 0;
 uint8_t initIndex = 0;
 bool requestPending = false;
+uint32_t last_burn = 0;
 
 const float RATIO_BIN = 0.25f; // [0, 0.50]
 bool afrIsValid = false, afrWasValid = false;
@@ -237,7 +238,7 @@ void updateLongTermTrim()
 
     const bool decel = GV.ms.map < (last_map - 50);
     last_map = GV.ms.map;
-    
+
     GV.ltt.accelDetected = accel || decel;
 
     int x, y, x2, y2;
@@ -298,10 +299,14 @@ void updateLongTermTrim()
     GV.ltt.y[0] = y;
     GV.ltt.y[1] = y2;
 
-    if ((GV.ms.pw1 == 0) && (GV.ltt.needBurn))
+    if ((GV.ltt.needBurn) &&
+        (GV.ms.pw1 == 0) &&                // decel fuel cut, avoid jerk
+        (GV.ms.rpm > 2500) &&              // high rpm to avoid stall
+        ((millis() - last_burn) > 600000)) // 10 minutes
     {
         send_burn(0, 9);
         GV.ltt.needBurn = false;
+        last_burn = millis();
     }
 
     afrIsValid = (GV.ms.pw1 > 0) &&

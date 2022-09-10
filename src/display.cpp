@@ -17,7 +17,7 @@
 
 namespace
 {
-THD_WORKING_AREA(waThdDisplay, 4 * 256);
+THD_WORKING_AREA(waThdDisplay, 6 * 256);
 
 DMAMEM uint16_t tft_frame_buffer0[240 * 320];
 DMAMEM uint16_t tft_frame_buffer1[240 * 320];
@@ -28,6 +28,11 @@ uint16_t GAUGE_BG = DISPLAY_BG;
 
 ILI9341_t3n tft(TFT_CS, TFT_DC);
 
+constexpr uint16_t rgb_to_565(int r, int g, int b)
+{
+    return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
+}
+
 uint16_t header_565_cmap[256];
 constexpr void get565cmap()
 {
@@ -36,7 +41,7 @@ constexpr void get565cmap()
         const uint8_t r = header_data_cmap[i][0];
         const uint8_t g = header_data_cmap[i][1];
         const uint8_t b = header_data_cmap[i][2];
-        header_565_cmap[i] = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
+        header_565_cmap[i] = rgb_to_565(r, g, b);
     }
 }
 
@@ -228,40 +233,40 @@ THD_FUNCTION(ThreadDisplay, arg)
         tft.fillScreen(ILI9341_BLACK);
 
         updateGauge();
-        updateAccelGauge(76, 124, 32);
+        updateAccelGauge(66, 124, 32);
 
         tft.setTextSize(4);
         tft.setTextColor(ILI9341_GREENYELLOW, ILI9341_BLACK);
 
-        tft.setCursor(28, 6);
+        tft.setCursor(28, 12);
         printNum(pGV->ms.egocor);
 
-        tft.setCursor(28, 40);
+        tft.setCursor(28, 46);
         printNum(pGV->ltt.error * 1000);
 
         if (pGV->ltt.engaged)
         {
-            tft.fillCircle(10, 20, 4, ILI9341_GREEN);
+            tft.fillCircle(6, 240-50, 4, ILI9341_GREEN);
         }
         else
         {
-            tft.drawCircle(10, 20, 4, ILI9341_GREEN);
+            tft.drawCircle(6, 240-50, 4, ILI9341_GREEN);
         }
         if (pGV->ltt.needBurn)
         {
-            tft.fillCircle(10, 35, 4, ILI9341_YELLOW);
+            tft.fillCircle(6, 240-35, 4, ILI9341_YELLOW);
         }
         else
         {
-            tft.drawCircle(10, 35, 4, ILI9341_YELLOW);
+            tft.drawCircle(6, 240-35, 4, ILI9341_YELLOW);
         }
         if (pGV->temperature > 85)
         {
-            tft.fillCircle(10, 50, 4, ILI9341_RED);
+            tft.fillCircle(6, 240-20, 4, ILI9341_RED);
         }
         else
         {
-            tft.drawCircle(10, 50, 4, ILI9341_RED);
+            tft.drawCircle(6, 240-20, 4, ILI9341_RED);
         }
 
         tft.setTextSize(1);
@@ -270,7 +275,7 @@ THD_FUNCTION(ThreadDisplay, arg)
             for (int i = 0; i < 16; i++)
             {
                 const uint8_t index = i + j * 16;
-                uint16_t color = ILI9341_BLACK;
+                uint16_t color = rgb_to_565(50, 50, 50);
                 if ((i == pGV->ltt.x[0] || i == pGV->ltt.x[1]) &&
                     (j == pGV->ltt.y[0] || j == pGV->ltt.y[1]))
                 {
@@ -284,13 +289,13 @@ THD_FUNCTION(ThreadDisplay, arg)
                 {
                     color = ILI9341_ORANGE;
                 }
-                else
+                else if (pGV->ltt.err[index] == EGOERR::OK)
                 {
                     color = ILI9341_GREEN;
                 }
 
                 const int sizex = 6, sizey = 4;
-                tft.fillRect(sizex * i + 28, -sizey * j + (240 - sizey), sizex, sizey, color);
+                tft.fillRect(sizex * i + 16, -sizey * j + (240 - sizey), sizex, sizey, color);
             }
         }
 

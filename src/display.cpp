@@ -3,9 +3,17 @@
 #include "git_sha.h"
 #include "global.h"
 #include "miata.h"
+#include "point.h"
 
 #define TFT_CS 10
 #define TFT_DC 9
+
+#define DISPLAY_ALERT 0xF800 // ILI9341_RED
+#define DISPLAY_ACCENT1 0x7fe2
+#define DISPLAY_ACCENT2 0x39e7
+#define DISPLAY_FG1 0xC618 // ILI9341_LIGHTGREY
+#define DISPLAY_FG2 0x7BEF // ILI9341_DARKGREY
+#define DISPLAY_BG ILI9341_BLACK
 
 namespace
 {
@@ -13,6 +21,10 @@ THD_WORKING_AREA(waThdDisplay, 4 * 256);
 
 DMAMEM uint16_t tft_frame_buffer0[240 * 320];
 DMAMEM uint16_t tft_frame_buffer1[240 * 320];
+
+Point gaugeCenter(320 - 52, 240 - 82, Point::CARTESIAN);
+int16_t gaugeRadius = 140;
+uint16_t GAUGE_BG = DISPLAY_BG;
 
 ILI9341_t3n tft(TFT_CS, TFT_DC);
 
@@ -26,6 +38,29 @@ constexpr void get565cmap()
         const uint8_t b = header_data_cmap[i][2];
         header_565_cmap[i] = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
     }
+}
+
+uint8_t numSize(int n)
+{
+    uint8_t s = (n < 0);
+    n = abs(n);
+    if (n < 100) // small binary-search-like optimisation
+    {
+        if (n < 10) // n between 0 & 9
+            s += 1;
+        else // n between 10 & 99
+            s += 2;
+    }
+    else if (n < 10000) // n between 100 & 9999
+    {
+        if (n < 1000) // n between 100 & 999
+            s += 3;
+        else // n between 1000 & 9999
+            s += 4;
+    }
+    else // n between 10000 & 65535, maximum value for 16-bit integer
+        s += 5;
+    return s;
 }
 
 void updateDisplay()
@@ -67,6 +102,97 @@ void printNum(int16_t num)
 
     tft.print(num);
 }
+
+void initGauge()
+{
+    tft.fillCircle(gaugeCenter.x(), gaugeCenter.y(), gaugeRadius + 12, DISPLAY_ACCENT2);
+    tft.drawCircle(gaugeCenter.x(), gaugeCenter.y(), gaugeRadius + 11, GAUGE_BG);
+    tft.fillCircle(gaugeCenter.x(), gaugeCenter.y(), gaugeRadius - 12, GAUGE_BG);
+    tft.drawCircle(gaugeCenter.x(), gaugeCenter.y(), gaugeRadius - 12, DISPLAY_ACCENT1);
+    // tft.writeRect(0, 0, gimp_image.width, gimp_image.height, (uint16_t*)gimp_image.pixel_data);
+
+    tft.setTextSize(2);
+    tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
+    tft.setTextColor(0x7fe2);
+
+    int16_t a = -17;
+    for (int i = 0; i < 9; i++)
+    {
+        Point c = gaugeCenter - Point(a, gaugeRadius, Point::POLAR);
+        tft.setCursor(c.x() - 4, c.y() - 7);
+        tft.print(8 - i);
+        a += 17;
+    }
+}
+
+void updateGauge()
+{
+    static Point needle[2];
+    static bool wasAlert = false;
+
+    initGauge();
+
+    if (GV.alert != wasAlert)
+    {
+        GAUGE_BG = GV.alert ? DISPLAY_ALERT : DISPLAY_BG;
+        tft.fillCircle(gaugeCenter.x(), gaugeCenter.y(), gaugeRadius - 14, GAUGE_BG);
+        wasAlert = GV.alert;
+    }
+
+    Point c1(-(GV.ms.rpm * 17 / 1000) + 119, gaugeRadius - 16, Point::POLAR);
+    Point c2(-(GV.ms.rpm * 17 / 1000) + 119, -30, Point::POLAR);
+
+    // tft.drawLine(needle[0].x(), needle[0].y(), needle[1].x(), needle[1].y(), GAUGE_BG);
+    // tft.drawLine(needle[0].x() + 1, needle[0].y(), needle[1].x() + 1, needle[1].y(), GAUGE_BG);
+    // tft.drawLine(needle[0].x(), needle[0].y() + 1, needle[1].x(), needle[1].y() + 1, GAUGE_BG);
+
+    needle[0] = gaugeCenter - c2;
+    needle[1] = gaugeCenter - c1;
+
+    tft.drawLine(needle[0].x(), needle[0].y(), needle[1].x(), needle[1].y(), DISPLAY_FG1);
+    tft.drawLine(needle[0].x() + 1, needle[0].y(), needle[1].x() + 1, needle[1].y(), DISPLAY_FG1);
+    tft.drawLine(needle[0].x(), needle[0].y() + 1, needle[1].x(), needle[1].y() + 1, DISPLAY_FG1);
+
+    tft.drawCircle(gaugeCenter.x(), gaugeCenter.y(), 9, DISPLAY_ACCENT2);
+    tft.drawCircle(gaugeCenter.x(), gaugeCenter.y(), 8, DISPLAY_ACCENT1);
+
+    tft.setTextSize(4);
+    tft.setTextColor(DISPLAY_FG1, GAUGE_BG);
+    tft.setCursor(220, 205);
+
+    for (int i = 0; i < 4 - numSize(GV.ms.rpm); i++)
+    {
+        tft.print(' ');
+    }
+    tft.print(GV.ms.rpm);
+}
+
+void updateAccelGauge(uint16_t center_x, uint16_t center_y, uint16_t radius)
+{
+    static int16_t lastx, lasty;
+    static bool init = false;
+
+    if (init)
+    {
+        // remove last point
+        tft.fillCircle(lastx, lasty, 4, DISPLAY_BG);
+    }
+
+    // re-draw gauge background
+    tft.drawCircle(center_x, center_y, radius, DISPLAY_FG1);
+    tft.drawCircle(center_x, center_y, radius / 2, DISPLAY_FG1);
+    tft.drawFastHLine(center_x - radius, center_y, radius * 2, DISPLAY_FG1);
+    tft.drawFastVLine(center_x, center_y - radius, radius * 2, DISPLAY_FG1);
+
+    // update accel marker position
+    lastx = (-GV.accel.x * radius) + center_x;
+    lasty = (GV.accel.z * radius) + center_y;
+
+    // draw accel marker
+    tft.fillCircle(lastx, lasty, 4, DISPLAY_ACCENT1);
+    // tft.drawLine(center_x, center_y, lastx, lasty, DISPLAY_FG2);
+    init = true;
+}
 } // namespace
 
 THD_FUNCTION(ThreadDisplay, arg)
@@ -101,42 +227,41 @@ THD_FUNCTION(ThreadDisplay, arg)
 
         tft.fillScreen(ILI9341_BLACK);
 
+        updateGauge();
+        updateAccelGauge(76, 124, 32);
+
         tft.setTextSize(4);
         tft.setTextColor(ILI9341_GREENYELLOW, ILI9341_BLACK);
 
-        tft.setCursor(40, 6);
-        printNum(pGV->ms.rpm);
-        tft.print('|');
-        printNum(pGV->ms.sensors2);
-
-        tft.setCursor(40, 40);
-        printNum(pGV->ltt.error * 1000);
-        tft.print('|');
+        tft.setCursor(28, 6);
         printNum(pGV->ms.egocor);
+
+        tft.setCursor(28, 40);
+        printNum(pGV->ltt.error * 1000);
 
         if (pGV->ltt.engaged)
         {
-            tft.fillCircle(320-10, 20, 4, ILI9341_GREEN);
+            tft.fillCircle(10, 20, 4, ILI9341_GREEN);
         }
         else
         {
-            tft.drawCircle(320-10, 20, 4, ILI9341_GREEN);
+            tft.drawCircle(10, 20, 4, ILI9341_GREEN);
         }
         if (pGV->ltt.needBurn)
         {
-            tft.fillCircle(320-10, 35, 4, ILI9341_YELLOW);
+            tft.fillCircle(10, 35, 4, ILI9341_YELLOW);
         }
         else
         {
-            tft.drawCircle(320-10, 35, 4, ILI9341_YELLOW);
+            tft.drawCircle(10, 35, 4, ILI9341_YELLOW);
         }
         if (pGV->temperature > 85)
         {
-            tft.fillCircle(320-10, 50, 4, ILI9341_RED);
+            tft.fillCircle(10, 50, 4, ILI9341_RED);
         }
         else
         {
-            tft.drawCircle(320-10, 50, 4, ILI9341_RED);
+            tft.drawCircle(10, 50, 4, ILI9341_RED);
         }
 
         tft.setTextSize(1);
@@ -145,35 +270,36 @@ THD_FUNCTION(ThreadDisplay, arg)
             for (int i = 0; i < 16; i++)
             {
                 const uint8_t index = i + j * 16;
-                const uint8_t val = pGV->ms.vetable[index];
+                uint16_t color = ILI9341_BLACK;
                 if ((i == pGV->ltt.x[0] || i == pGV->ltt.x[1]) &&
                     (j == pGV->ltt.y[0] || j == pGV->ltt.y[1]))
                 {
-                    tft.setTextColor(ILI9341_BLACK, ILI9341_YELLOW);
-                }
-                else if (pGV->ltt.err[index] == EGOERR::UNKNOWN)
-                {
-                    tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
+                    color = ILI9341_YELLOW;
                 }
                 else if (pGV->ltt.err[index] == EGOERR::RICH)
                 {
-                    tft.setTextColor(ILI9341_WHITE, ILI9341_BLUE);
+                    color = ILI9341_CYAN;
                 }
                 else if (pGV->ltt.err[index] == EGOERR::LEAN)
                 {
-                    tft.setTextColor(ILI9341_WHITE, ILI9341_RED);
+                    color = ILI9341_ORANGE;
                 }
                 else
                 {
-                    tft.setTextColor(ILI9341_WHITE, ILI9341_DARKGREEN);
+                    color = ILI9341_GREEN;
                 }
 
-                tft.setCursor(20 * i, -10 * j + 230);
-                if (val < 10) tft.print(' ');
-                if (val < 100) tft.print(' ');
-                tft.print(val);
+                const int sizex = 6, sizey = 4;
+                tft.fillRect(sizex * i + 28, -sizey * j + (240 - sizey), sizex, sizey, color);
             }
         }
+
+        tft.setCursor(45, 2);
+        tft.setTextSize(1);
+        tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
+
+        tft.print(GIT_SHA);
+        
         updateDisplay();
     }
 }

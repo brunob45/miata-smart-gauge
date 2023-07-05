@@ -5,6 +5,7 @@
 #include "global.h"
 #include "miata.h"
 #include "point.h"
+#include "temperature.h"
 
 #define TFT_CS 10
 #define TFT_DC 9
@@ -36,6 +37,7 @@ constexpr uint16_t rgb_to_565(int r, int g, int b)
 
 uint16_t miata_565_cmap[256];
 uint16_t bt_565_cmap[256];
+uint16_t temp_565_cmap[256];
 constexpr void get565cmap(uint8_t cmap_rgb[][3], uint16_t* cmap_565, uint16_t size)
 {
     for (uint16_t i = 0; i < size; i++)
@@ -207,6 +209,7 @@ THD_FUNCTION(ThreadDisplay, arg)
 
     get565cmap(miata_data_cmap, miata_565_cmap, 256);
     get565cmap(bt_data_cmap, bt_565_cmap, 256);
+    get565cmap(temp_data_cmap, temp_565_cmap, 256);
 
     pinMode(A6, INPUT); // Night lights input
     pinMode(6, OUTPUT); // Brightness contol pin
@@ -323,13 +326,9 @@ THD_FUNCTION(ThreadDisplay, arg)
         {
             overtemp = false;
         }
-        if (overtemp)
+        if (overtemp || millis() < 7'000)
         {
-            tft.fillCircle(134, 16, 4, ILI9341_RED);
-        }
-        else
-        {
-            tft.drawCircle(134, 16, 4, ILI9341_RED);
+            tft.writeRect8BPP(130, 16, temp_width, temp_height, temp_data, temp_565_cmap);
         }
 
         // tft.setTextSize(1);
@@ -367,9 +366,9 @@ THD_FUNCTION(ThreadDisplay, arg)
         tft.setCursor(45, 2);
         tft.print(GIT_SHA);
 
-        if (GV.ms.sensors9 > 300)
+        if (GV.ms.sensors9 > 300 || millis() < 7'000)
         {
-            tft.writeRect8BPP(2, 150, bt_width, bt_height, bt_data, bt_565_cmap);
+            tft.writeRect8BPP(145, 16, bt_width, bt_height, bt_data, bt_565_cmap);
         }
 
         updateDisplay();

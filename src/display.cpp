@@ -310,7 +310,7 @@ THD_FUNCTION(ThreadDisplay, arg)
 
         if (GV.ms.sensors9 > 300)
         {
-            tft.writeRect8BPP(280, 180, bt_width, bt_height, miata_data, miata_565_cmap);
+            tft.writeRect8BPP(280, 180, bt_width, bt_height, bt_data, bt_565_cmap);
         }
 
         updateDisplay();

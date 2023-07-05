@@ -283,12 +283,9 @@ THD_FUNCTION(ThreadDisplay, arg)
         tft.setCursor(28 + 96 - 9, 48);
         tft.print("3/2");
 
-        // const float oil_a = -0.008352f;
-        // const float oil_b = -0.5f;
-        // const float oil_c = 116.0f;
-
-        const float oil_m = -63.78855991f;
-        const float oil_b = 9287.681496f;
+        const float oil_a = -4.47e-3;
+        const float oil_b = -0.185f;
+        const float oil_c = 136.0f;
 
         tft.setTextSize(3);
         tft.setCursor(16, 180);
@@ -296,15 +293,17 @@ THD_FUNCTION(ThreadDisplay, arg)
         {
             tft.print("...?");
         }
-        else if (pGV->ms.sensors10 > 140)
-        {
-            tft.print("LOW!");
-        }
         else
         {
-            // const float oil_pressure = oil_a * pGV->ms.sensors10 * pGV->ms.sensors10 + oil_b * pGV->ms.sensors10 + oil_c;
-            const float oilP = oil_m * pGV->ms.sensors10 + oil_b;
-            printNum(oilP);
+            const float oilP = oil_a * pGV->ms.sensors10 * pGV->ms.sensors10 + oil_b * pGV->ms.sensors10 + oil_c;
+            if (oilP < 0)
+            {
+                tft.print("LOW!");
+            }
+            else
+            {
+                printNum(oilP * 70.307f);
+            }
         }
 
         tft.setCursor(16, 180 + 9 * 3);

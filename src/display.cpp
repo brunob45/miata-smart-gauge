@@ -118,9 +118,8 @@ void initGauge()
     tft.drawCircle(gaugeCenter.x(), gaugeCenter.y(), gaugeRadius - 12, DISPLAY_ACCENT1);
     // tft.writeRect(0, 0, gimp_image.width, gimp_image.height, (uint16_t*)gimp_image.pixel_data);
 
-    tft.setTextSize(2);
-    tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
     tft.setTextColor(0x7fe2);
+    tft.setTextSize(2);
 
     int16_t a = -17;
     for (int i = 0; i < 9; i++)
@@ -163,8 +162,8 @@ void updateGauge()
     tft.drawCircle(gaugeCenter.x(), gaugeCenter.y(), 9, DISPLAY_ACCENT2);
     tft.drawCircle(gaugeCenter.x(), gaugeCenter.y(), 8, DISPLAY_ACCENT1);
 
-    tft.setTextSize(4);
     tft.setTextColor(DISPLAY_FG1, GAUGE_BG);
+    tft.setTextSize(4);
     tft.setCursor(220, 205);
 
     for (int i = 0; i < 4 - numSize(GV.ms.rpm); i++)
@@ -238,66 +237,99 @@ THD_FUNCTION(ThreadDisplay, arg)
         updateGauge();
         updateAccelGauge(66, 124, 32);
 
-        tft.setTextSize(4);
-        tft.setTextColor(ILI9341_GREENYELLOW, ILI9341_BLACK);
-
-        int16_t offset;
+        float ego_scale = 1.0f;
         if (pGV->ltt.error < 0.5f)
         {
-            offset = -96 / 2;
+            ego_scale = -1.0f;
         }
         else if (pGV->ltt.error < 1.0f)
         {
-            offset = -(1.0f / pGV->ltt.error) * 96 / 4;
+            ego_scale = 1.0f - 1.0f / pGV->ltt.error;
         }
         else if (pGV->ltt.error < 2.0f)
         {
-            offset = pGV->ltt.error * 96 / 4;
+            ego_scale = pGV->ltt.error - 1.0f;
         }
-        else
-        {
-            offset = 96 / 2;
-        }
+        // else ego_scale = 1.0f
 
+        const int16_t scale_width = 96;
+        const int16_t offset = ego_scale * scale_width / 2;
         if (offset < 0)
         {
-            tft.fillRect(28 + 96 / 2 + offset, 12, -offset, 36, ILI9341_GREENYELLOW);
+            tft.fillRect(28 + scale_width / 2 + offset, 12, -offset, 34, ILI9341_GREENYELLOW);
         }
         else
         {
-            tft.fillRect(28 + 96 / 2, 12, offset, 36, ILI9341_GREENYELLOW);
+            tft.fillRect(28 + scale_width / 2, 12, offset, 34, ILI9341_GREENYELLOW);
         }
-        tft.drawRect(28, 12, 96, 36, ILI9341_WHITE);
+        tft.drawRect(28, 12, scale_width, 34, ILI9341_WHITE);
 
-        // tft.setCursor(28, 12);
-        // printNum(pGV->ms.egocor1);
+        tft.setTextColor(ILI9341_GREENYELLOW, ILI9341_BLACK);
+        tft.setTextSize(1);
+        tft.setCursor(28 - 9, 48);
+        tft.print("1/2");
 
-        tft.setCursor(28, 46);
+        tft.setCursor(28 + 96 / 2 - 9, 48);
+        tft.print("1/1");
+
+        tft.setCursor(28 + 96 - 9, 48);
+        tft.print("2/1");
+
+        const float oil_a = -0.008352f;
+        const float oil_b = -0.5f;
+        const float oil_c = 116.0f;
+
+        tft.setTextSize(3);
+        tft.setCursor(16, 180);
+        if (pGV->ms.sensors10 == 0)
+        {
+            tft.print("....");
+        }
+        else if (pGV->ms.sensors10 > 91)
+        {
+            tft.print("LOW!");
+        }
+        else
+        {
+            const float oil_pressure = oil_a * pGV->ms.sensors10 * pGV->ms.sensors10 + oil_b * pGV->ms.sensors10 + oil_c;
+            printNum(oil_pressure * 70.307f); // convert psi to g/cm2
+        }
+
+        tft.setCursor(16, 180 + 9 * 3);
         printNum(pGV->ltt.error * 1000);
 
-        if (pGV->ltt.engaged)
-        {
-            tft.fillCircle(6, 240 - 50, 4, ILI9341_GREEN);
-        }
-        else
-        {
-            tft.drawCircle(6, 240 - 50, 4, ILI9341_GREEN);
-        }
-        if (pGV->ltt.needBurn)
-        {
-            tft.fillCircle(6, 240 - 35, 4, ILI9341_YELLOW);
-        }
-        else
-        {
-            tft.drawCircle(6, 240 - 35, 4, ILI9341_YELLOW);
-        }
+        // if (pGV->ltt.engaged)
+        // {
+        //     tft.fillCircle(6, 240 - 50, 4, ILI9341_GREEN);
+        // }
+        // else
+        // {
+        //     tft.drawCircle(6, 240 - 50, 4, ILI9341_GREEN);
+        // }
+        // if (pGV->ltt.needBurn)
+        // {
+        //     tft.fillCircle(6, 240 - 35, 4, ILI9341_YELLOW);
+        // }
+        // else
+        // {
+        //     tft.drawCircle(6, 240 - 35, 4, ILI9341_YELLOW);
+        // }
+        static bool overtemp;
         if (pGV->temperature > 85)
         {
-            tft.fillCircle(6, 240 - 20, 4, ILI9341_RED);
+            overtemp = true;
+        }
+        else if (pGV->temperature < 82)
+        {
+            overtemp = false;
+        }
+        if (overtemp)
+        {
+            tft.fillCircle(134, 16, 4, ILI9341_RED);
         }
         else
         {
-            tft.drawCircle(6, 240 - 20, 4, ILI9341_RED);
+            tft.drawCircle(134, 16, 4, ILI9341_RED);
         }
 
         // tft.setTextSize(1);
@@ -330,10 +362,9 @@ THD_FUNCTION(ThreadDisplay, arg)
         //     }
         // }
 
-        tft.setCursor(45, 2);
-        tft.setTextSize(1);
         tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
-
+        tft.setTextSize(1);
+        tft.setCursor(45, 2);
         tft.print(GIT_SHA);
 
         if (GV.ms.sensors9 > 300)

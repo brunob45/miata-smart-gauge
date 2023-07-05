@@ -225,7 +225,7 @@ void update(int x, int y, float error, bool execute)
         if (roundl(GV.ms.vetable[index]) != roundl(ve))
         {
             send_value(0, 9, 256 + index, roundl(ve));
-            GV.ltt.needBurn = true;
+            //GV.ltt.needBurn = true; // disable burn
         }
         GV.ms.vetable[index] = ve;
     }
@@ -310,7 +310,7 @@ void updateLongTermTrim()
     }
 
     afrIsValid = (GV.ms.pw1 > 0) &&
-                 (GV.ms.afr > 100) && // 10.0 afr
+                 (GV.ms.afr1 > 100) && // 10.0 afr
                  (GV.ms.rpm > 500) && // 500 rpm
                  (GV.ms.clt > 650) && // 65.0 C
                  (!GV.ltt.accelDetected);
@@ -322,9 +322,9 @@ void updateLongTermTrim()
     afrWasValid = afrIsValid;
     GV.ltt.engaged = afrIsValid && (millis() - afrTimeValid) > 2000;
 
-    if (GV.ms.afrtgt > 0)
+    if (GV.ms.afrtgt1 > 0)
     {
-        GV.ltt.error = GV.ms.egocor / 1000.0f * GV.ms.afr / GV.ms.afrtgt;
+        GV.ltt.error = GV.ms.egocor1 / 1000.0f * GV.ms.afr1 / GV.ms.afrtgt1;
     }
     else
     {
@@ -356,33 +356,49 @@ void init()
 
 bool rx_broadcast(const CAN_message_t& msg)
 {
+    const int BASE_ID = 1520;
     // Convert each field from big endian to local format
-    switch (msg.id)
+    switch (msg.id - BASE_ID)
     {
-    case 1512:
-        GV.ms.map = (msg.buf[0] << 8) | (msg.buf[1] << 0);         // 0.1 kPa
-        GV.ms.rpm = (msg.buf[2] << 8) | (msg.buf[3] << 0);         // 1 rpm
-        GV.ms.clt = F_TO_C((msg.buf[4] << 8) | (msg.buf[5] << 0)); // 0.1 deg F
-        GV.ms.tps = (msg.buf[6] << 8) | (msg.buf[7] << 0);         // 0.1 %
+    case 0:
+        GV.ms.seconds = (msg.buf[0] << 8) | (msg.buf[1] << 0);
+        GV.ms.pw1 = (msg.buf[2] << 8) | (msg.buf[3] << 0);
+        GV.ms.pw2 = (msg.buf[4] << 8) | (msg.buf[5] << 0);
+        GV.ms.rpm = (msg.buf[6] << 8) | (msg.buf[7] << 0);
         return true;
-    case 1513:
-        GV.ms.pw1 = (msg.buf[0] << 8) | (msg.buf[1] << 0);         // 1 us
-        GV.ms.pw2 = (msg.buf[2] << 8) | (msg.buf[3] << 0);         // 1 us
-        GV.ms.mat = F_TO_C((msg.buf[4] << 8) | (msg.buf[5] << 0)); // 0.1 deg F
-        GV.ms.adv = (msg.buf[6] << 8) | (msg.buf[7] << 0);         // 0.1 deg BTDC
+    case 1:
+        GV.ms.adv = (msg.buf[0] << 8) | (msg.buf[1] << 0);
+        GV.ms.squirt = msg.buf[2];
+        GV.ms.engine = msg.buf[3];
+        GV.ms.afrtgt1 = msg.buf[4];
+        GV.ms.afrtgt2 = msg.buf[5];
+        // 6-7 unused
         return true;
-    case 1514:
-        GV.ms.afrtgt = msg.buf[0];                                 // 1 AFR
-        GV.ms.afr = msg.buf[1];                                    // 1 AFR
-        GV.ms.egocor = (msg.buf[2] << 8) | (msg.buf[3] << 0);      // 0.1 %
-        GV.ms.egt = F_TO_C((msg.buf[4] << 8) | (msg.buf[5] << 0)); // 0.1 deg F
-        GV.ms.pwseq = (msg.buf[6] << 8) | (msg.buf[7] << 0);       // 1 us
+    case 2:
+        GV.ms.baro = (msg.buf[0] << 8) | (msg.buf[1] << 0);
+        GV.ms.map = (msg.buf[2] << 8) | (msg.buf[3] << 0);
+        GV.ms.mat = F_TO_C((msg.buf[4] << 8) | (msg.buf[5] << 0));
+        GV.ms.clt = F_TO_C((msg.buf[6] << 8) | (msg.buf[7] << 0));
         return true;
-    case 1515:
-        GV.ms.batt = (msg.buf[0] << 8) | (msg.buf[1] << 0); // 0.1 V
-        GV.ms.sensors1 = (msg.buf[2] << 8) | (msg.buf[3] << 0);
-        GV.ms.sensors2 = (msg.buf[4] << 8) | (msg.buf[5] << 0);
-        GV.ms.knk_rtd = (msg.buf[6] << 8) | (msg.buf[7] << 0); // 0.1 deg
+    case 3:
+        GV.ms.tps = (msg.buf[0] << 8) | (msg.buf[1] << 0);
+        GV.ms.batt = (msg.buf[2] << 8) | (msg.buf[3] << 0);
+        GV.ms.afr1 = (msg.buf[4] << 8) | (msg.buf[5] << 0);
+        GV.ms.afr2 = (msg.buf[6] << 8) | (msg.buf[7] << 0);
+        return true;
+    case 4:
+        GV.ms.knock = (msg.buf[0] << 8) | (msg.buf[1] << 0);
+        GV.ms.egocor1 = (msg.buf[2] << 8) | (msg.buf[3] << 0);
+        GV.ms.egocor2 = (msg.buf[4] << 8) | (msg.buf[5] << 0);
+        GV.ms.aircor = (msg.buf[6] << 8) | (msg.buf[7] << 0);
+        return true;
+    case 15:
+        GV.ms.sensors9 = (msg.buf[0] << 8) | (msg.buf[1] << 0);
+        GV.ms.sensors10 = (msg.buf[2] << 8) | (msg.buf[3] << 0);
+        // 4-7 unused
+    case 59:
+        // 0-5 unused
+        GV.ms.deadtime1 = (msg.buf[6] << 8) | (msg.buf[7] << 0);
         updateLongTermTrim();
         return true;
     default:

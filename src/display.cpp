@@ -4,6 +4,7 @@
 #include "global.h"
 #include "miata.h"
 #include "point.h"
+#include "BtLogo.h"
 
 #define TFT_CS 10
 #define TFT_DC 9
@@ -33,15 +34,16 @@ constexpr uint16_t rgb_to_565(int r, int g, int b)
     return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
 }
 
-uint16_t header_565_cmap[256];
-constexpr void get565cmap()
+uint16_t miata_565_cmap[256];
+uint16_t bt_565_cmap[256];
+constexpr void get565cmap(uint8_t cmap_rgb[][3], uint16_t* cmap_565, uint16_t size)
 {
-    for (uint16_t i = 0; i < 256; i++)
+    for (uint16_t i = 0; i < size; i++)
     {
-        const uint8_t r = header_data_cmap[i][0];
-        const uint8_t g = header_data_cmap[i][1];
-        const uint8_t b = header_data_cmap[i][2];
-        header_565_cmap[i] = rgb_to_565(r, g, b);
+        const uint8_t r = cmap_rgb[i][0];
+        const uint8_t g = cmap_rgb[i][1];
+        const uint8_t b = cmap_rgb[i][2];
+        cmap_565[i] = rgb_to_565(r, g, b);
     }
 }
 
@@ -204,7 +206,8 @@ THD_FUNCTION(ThreadDisplay, arg)
 {
     GlobalVars* pGV = (GlobalVars*)arg;
 
-    get565cmap();
+    get565cmap(miata_data_cmap, miata_565_cmap, 256);
+    get565cmap(bt_data_cmap, bt_565_cmap, 256);
 
     pinMode(A6, INPUT); // Night lights input
     pinMode(6, OUTPUT); // Brightness contol pin
@@ -215,7 +218,7 @@ THD_FUNCTION(ThreadDisplay, arg)
     tft.useFrameBuffer(true);
     tft.setRotation(3);
 
-    tft.writeRect8BPP(0, 0, width, height, header_data, header_565_cmap);
+    tft.writeRect8BPP(0, 0, miata_width, miata_height, miata_data, miata_565_cmap);
     tft.updateScreenAsync();
     tft.waitUpdateAsyncComplete();
 
@@ -239,7 +242,7 @@ THD_FUNCTION(ThreadDisplay, arg)
         tft.setTextColor(ILI9341_GREENYELLOW, ILI9341_BLACK);
 
         tft.setCursor(28, 12);
-        printNum(pGV->ms.egocor);
+        printNum(pGV->ms.egocor1);
 
         tft.setCursor(28, 46);
         printNum(pGV->ltt.error * 1000);
@@ -304,7 +307,12 @@ THD_FUNCTION(ThreadDisplay, arg)
         tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
 
         tft.print(GIT_SHA);
-        
+
+        if (GV.ms.sensors9 > 300)
+        {
+            tft.writeRect8BPP(280, 180, bt_width, bt_height, miata_data, miata_565_cmap);
+        }
+
         updateDisplay();
     }
 }

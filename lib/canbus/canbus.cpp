@@ -225,7 +225,7 @@ void update(int x, int y, float error, bool execute)
         if (roundl(GV.ms.vetable[index]) != roundl(ve))
         {
             send_value(0, 9, 256 + index, roundl(ve));
-            //GV.ltt.needBurn = true; // disable burn
+            GV.ltt.needBurn = true;
         }
         GV.ms.vetable[index] = ve;
     }
@@ -320,7 +320,7 @@ void updateLongTermTrim()
         afrTimeValid = millis();
     }
     afrWasValid = afrIsValid;
-    GV.ltt.engaged = afrIsValid && (millis() - afrTimeValid) > 2000;
+    //GV.ltt.engaged = afrIsValid && (millis() - afrTimeValid) > 2000;
 
     if (GV.ms.afrtgt1 > 0)
     {

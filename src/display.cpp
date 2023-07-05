@@ -1,10 +1,10 @@
 #include "display.h"
 
+#include "BtLogo.h"
 #include "git_sha.h"
 #include "global.h"
 #include "miata.h"
 #include "point.h"
-#include "BtLogo.h"
 
 #define TFT_CS 10
 #define TFT_DC 9
@@ -241,66 +241,94 @@ THD_FUNCTION(ThreadDisplay, arg)
         tft.setTextSize(4);
         tft.setTextColor(ILI9341_GREENYELLOW, ILI9341_BLACK);
 
-        tft.setCursor(28, 12);
-        printNum(pGV->ms.egocor1);
+        int16_t offset;
+        if (pGV->ltt.error < 0.5f)
+        {
+            offset = -96 / 2;
+        }
+        else if (pGV->ltt.error < 1.0f)
+        {
+            offset = -(1.0f / pGV->ltt.error) * 96 / 4;
+        }
+        else if (pGV->ltt.error < 2.0f)
+        {
+            offset = pGV->ltt.error * 96 / 4;
+        }
+        else
+        {
+            offset = 96 / 2;
+        }
+
+        if (offset < 0)
+        {
+            tft.fillRect(28 + 96 / 2 + offset, 12, -offset, 36, ILI9341_GREENYELLOW);
+        }
+        else
+        {
+            tft.fillRect(28 + 96 / 2, 12, offset, 36, ILI9341_GREENYELLOW);
+        }
+        tft.drawRect(28, 12, 96, 36, ILI9341_WHITE);
+
+        // tft.setCursor(28, 12);
+        // printNum(pGV->ms.egocor1);
 
         tft.setCursor(28, 46);
         printNum(pGV->ltt.error * 1000);
 
         if (pGV->ltt.engaged)
         {
-            tft.fillCircle(6, 240-50, 4, ILI9341_GREEN);
+            tft.fillCircle(6, 240 - 50, 4, ILI9341_GREEN);
         }
         else
         {
-            tft.drawCircle(6, 240-50, 4, ILI9341_GREEN);
+            tft.drawCircle(6, 240 - 50, 4, ILI9341_GREEN);
         }
         if (pGV->ltt.needBurn)
         {
-            tft.fillCircle(6, 240-35, 4, ILI9341_YELLOW);
+            tft.fillCircle(6, 240 - 35, 4, ILI9341_YELLOW);
         }
         else
         {
-            tft.drawCircle(6, 240-35, 4, ILI9341_YELLOW);
+            tft.drawCircle(6, 240 - 35, 4, ILI9341_YELLOW);
         }
         if (pGV->temperature > 85)
         {
-            tft.fillCircle(6, 240-20, 4, ILI9341_RED);
+            tft.fillCircle(6, 240 - 20, 4, ILI9341_RED);
         }
         else
         {
-            tft.drawCircle(6, 240-20, 4, ILI9341_RED);
+            tft.drawCircle(6, 240 - 20, 4, ILI9341_RED);
         }
 
-        tft.setTextSize(1);
-        for (int j = 0; j < 16; j++)
-        {
-            for (int i = 0; i < 16; i++)
-            {
-                const uint8_t index = i + j * 16;
-                uint16_t color = rgb_to_565(50, 50, 50);
-                if ((i == pGV->ltt.x[0] || i == pGV->ltt.x[1]) &&
-                    (j == pGV->ltt.y[0] || j == pGV->ltt.y[1]))
-                {
-                    color = ILI9341_YELLOW;
-                }
-                else if (pGV->ltt.err[index] == EGOERR::RICH)
-                {
-                    color = ILI9341_CYAN;
-                }
-                else if (pGV->ltt.err[index] == EGOERR::LEAN)
-                {
-                    color = ILI9341_ORANGE;
-                }
-                else if (pGV->ltt.err[index] == EGOERR::OK)
-                {
-                    color = ILI9341_GREEN;
-                }
+        // tft.setTextSize(1);
+        // for (int j = 0; j < 16; j++)
+        // {
+        //     for (int i = 0; i < 16; i++)
+        //     {
+        //         const uint8_t index = i + j * 16;
+        //         uint16_t color = rgb_to_565(50, 50, 50);
+        //         if ((i == pGV->ltt.x[0] || i == pGV->ltt.x[1]) &&
+        //             (j == pGV->ltt.y[0] || j == pGV->ltt.y[1]))
+        //         {
+        //             color = ILI9341_YELLOW;
+        //         }
+        //         else if (pGV->ltt.err[index] == EGOERR::RICH)
+        //         {
+        //             color = ILI9341_CYAN;
+        //         }
+        //         else if (pGV->ltt.err[index] == EGOERR::LEAN)
+        //         {
+        //             color = ILI9341_ORANGE;
+        //         }
+        //         else if (pGV->ltt.err[index] == EGOERR::OK)
+        //         {
+        //             color = ILI9341_GREEN;
+        //         }
 
-                const int sizex = 6, sizey = 4;
-                tft.fillRect(sizex * i + 16, -sizey * j + (240 - sizey), sizex, sizey, color);
-            }
-        }
+        //         const int sizex = 6, sizey = 4;
+        //         tft.fillRect(sizex * i + 16, -sizey * j + (240 - sizey), sizex, sizey, color);
+        //     }
+        // }
 
         tft.setCursor(45, 2);
         tft.setTextSize(1);

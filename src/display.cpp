@@ -240,62 +240,71 @@ THD_FUNCTION(ThreadDisplay, arg)
         updateGauge();
         updateAccelGauge(66, 124, 32);
 
-        float ego_scale = 1.0f;
-        if (pGV->ltt.error < 0.5f)
-        {
-            ego_scale = -1.0f;
-        }
-        else if (pGV->ltt.error < 1.0f)
-        {
-            ego_scale = 1.0f - 1.0f / pGV->ltt.error;
-        }
-        else if (pGV->ltt.error < 2.0f)
-        {
-            ego_scale = pGV->ltt.error - 1.0f;
-        }
-        // else ego_scale = 1.0f
-
         const int16_t scale_width = 96;
-        const int16_t offset = ego_scale * scale_width / 2;
-        if (offset < 0)
+        if (pGV->ltt.error > 0.0f)
         {
-            tft.fillRect(28 + scale_width / 2 + offset, 12, -offset, 34, ILI9341_GREENYELLOW);
-        }
-        else
-        {
-            tft.fillRect(28 + scale_width / 2, 12, offset, 34, ILI9341_GREENYELLOW);
+            // ltt.error => [0.5;1.5]
+            float ego_scale = (pGV->ltt.error < 1) ? (1.0f / pGV->ltt.error) : pGV->ltt.error;
+            // ego_scale => [1.0;2.0]
+            ego_scale = (ego_scale - 1) * 2;
+            // ego_scale => [0.0;2.0]
+            if (ego_scale > 1.0f)
+            {
+                ego_scale = 1.0f;
+            }
+            // ego_scale => [0.0;1.0]
+            if (pGV->ltt.error < 1)
+            {
+                ego_scale = -ego_scale;
+            }
+            // ego_scale => [-1.0;1.0]
+
+            const int16_t offset = ego_scale * scale_width / 2;
+            const int16_t center = 28 + scale_width / 2;
+            if (offset < 0)
+            {
+                tft.fillRect(center + offset, 12, -offset, 34, ILI9341_GREENYELLOW);
+            }
+            else
+            {
+                tft.fillRect(center, 12, offset, 34, ILI9341_GREENYELLOW);
+            }
         }
         tft.drawRect(28, 12, scale_width, 34, ILI9341_WHITE);
 
         tft.setTextColor(ILI9341_GREENYELLOW, ILI9341_BLACK);
         tft.setTextSize(1);
         tft.setCursor(28 - 9, 48);
-        tft.print("1/2");
+        tft.print("2/3");
 
         tft.setCursor(28 + 96 / 2 - 9, 48);
-        tft.print("1/1");
+        tft.print("2/2");
 
         tft.setCursor(28 + 96 - 9, 48);
-        tft.print("2/1");
+        tft.print("3/2");
 
-        const float oil_a = -0.008352f;
-        const float oil_b = -0.5f;
-        const float oil_c = 116.0f;
+        // const float oil_a = -0.008352f;
+        // const float oil_b = -0.5f;
+        // const float oil_c = 116.0f;
+
+        const float oil_m = -63.78855991f;
+        const float oil_b = 9287.681496f;
 
         tft.setTextSize(3);
         tft.setCursor(16, 180);
         if (pGV->ms.sensors10 == 0)
         {
-            tft.print("....");
+            tft.print("...?");
         }
-        else if (pGV->ms.sensors10 > 91)
+        else if (pGV->ms.sensors10 > 140)
         {
             tft.print("LOW!");
         }
         else
         {
-            const float oil_pressure = oil_a * pGV->ms.sensors10 * pGV->ms.sensors10 + oil_b * pGV->ms.sensors10 + oil_c;
-            printNum(oil_pressure * 70.307f); // convert psi to g/cm2
+            // const float oil_pressure = oil_a * pGV->ms.sensors10 * pGV->ms.sensors10 + oil_b * pGV->ms.sensors10 + oil_c;
+            const float oilP = oil_m * pGV->ms.sensors10 + oil_b;
+            printNum(oilP);
         }
 
         tft.setCursor(16, 180 + 9 * 3);

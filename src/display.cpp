@@ -207,6 +207,9 @@ THD_FUNCTION(ThreadDisplay, arg)
 {
     GlobalVars* pGV = (GlobalVars*)arg;
 
+    const int16_t oil_threshold = 5;
+    int16_t oilP;
+
     get565cmap(miata_data_cmap, miata_565_cmap, 256);
     get565cmap(bt_data_cmap, bt_565_cmap, 256);
     get565cmap(temp_data_cmap, temp_565_cmap, 256);
@@ -253,11 +256,11 @@ THD_FUNCTION(ThreadDisplay, arg)
                 ego_scale = 1.0f;
             }
             // ego_scale => [0.0;1.0]
-            if (pGV->ltt.error < 1)
+            if (pGV->ltt.error > 1)
             {
                 ego_scale = -ego_scale;
             }
-            // ego_scale => [-1.0;1.0]
+            // ego_scale => -1.0 = 22 AFR, 1.0 = 9.8 AFR
 
             const int16_t offset = ego_scale * scale_width / 2;
             const int16_t center = 28 + scale_width / 2;
@@ -283,9 +286,18 @@ THD_FUNCTION(ThreadDisplay, arg)
         tft.setCursor(28 + 96 - 9, 48);
         tft.print("3/2");
 
-        const float oil_a = -4.47e-3;
-        const float oil_b = -0.185f;
-        const float oil_c = 136.0f;
+        // const float oil_a = -4.47e-3;
+        // const float oil_b = -0.185f;
+        // const float oil_c = 136.0f;
+        // threshold filter
+        if (pGV->ms.sensors10 > oilP + oil_threshold)
+        {
+            oilP = pGV->ms.sensors10 - oil_threshold;
+        }
+        else if (pGV->ms.sensors10 < oilP - oil_threshold)
+        {
+            oilP = pGV->ms.sensors10 + oil_threshold;
+        }
 
         tft.setTextSize(3);
         tft.setCursor(16, 180);
@@ -295,14 +307,14 @@ THD_FUNCTION(ThreadDisplay, arg)
         }
         else
         {
-            const float oilP = oil_a * pGV->ms.sensors10 * pGV->ms.sensors10 + oil_b * pGV->ms.sensors10 + oil_c;
+            // const float oilP = oil_a * pGV->ms.sensors10 * pGV->ms.sensors10 + oil_b * pGV->ms.sensors10 + oil_c;
             if (oilP < 0)
             {
                 tft.print("LOW!");
             }
             else
             {
-                printNum(oilP * 70.307f);
+                printNum(oilP * 30.0 / 1.024); // oilP is ASD, convert to mV
             }
         }
 

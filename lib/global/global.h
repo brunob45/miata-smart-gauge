@@ -13,27 +13,37 @@ struct GlobalVars
 {
     struct
     {
-        // 1512
-        int16_t map;
-        uint16_t rpm;
-        int16_t clt;
-        int16_t tps;
-        // 1513
-        uint16_t pw1;
-        uint16_t pw2;
-        int16_t mat;
-        int16_t adv;
-        // 1514
-        uint8_t afrtgt;
-        uint8_t afr;
-        int16_t egocor;
-        int16_t egt;
-        int16_t pwseq;
-        // 1515
-        int16_t batt;
-        int16_t sensors1;
-        int16_t sensors2;
-        int16_t knk_rtd;
+        // 0
+        uint16_t seconds;   // 1 s
+        uint16_t pw1;       // 0.001 ms
+        uint16_t pw2;       // 0.001 ms
+        uint16_t rpm;       // 1 rpm
+        // 1
+        int16_t adv;        // 0.1 deg
+        uint8_t squirt;
+        uint8_t engine;
+        uint8_t afrtgt1;    // 0.1 AFR
+        uint8_t afrtgt2;    // 0.1 AFR
+        // 2
+        int16_t baro;       // 0.1 kPa
+        int16_t map;        // 0.1 kPa
+        int16_t mat;        // 0.1 deg C
+        int16_t clt;        // 0.1 deg C
+        // 3
+        int16_t tps;        // 0.1 %
+        int16_t batt;       // 0.1 V
+        int16_t afr1;       // 0.1 AFR
+        int16_t afr2;       // 0.1 AFR
+        // 4
+        int16_t knock;      // 0.1 %
+        int16_t egocor1;    // 0.1 %
+        int16_t egocor2;    // 0.1 %
+        int16_t aircor;     // 0.1 %
+        // 15
+        int16_t sensors9;
+        int16_t sensors10;
+        // 59
+        int16_t deadtime1;  // 0.001 ms
 
         float vetable[16 * 16];
         uint16_t rpm_table[16];

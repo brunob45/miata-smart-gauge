@@ -72,7 +72,7 @@ THD_FUNCTION(ThreadMain, arg)
             checkFault(&pGV->fault_code, 0, pGV->ms.clt > 1000, pGV->ms.clt <= 930); // 100C & 93C
 
             // Low oil pressure
-            checkFault(&pGV->fault_code, 1, pGV->ms.sensors2 > 150, pGV->ms.sensors2 < 140);
+            //checkFault(&pGV->fault_code, 1, pGV->ms.sensors2 > 150, pGV->ms.sensors2 < 140);
 
             // Engine off
             checkFault(&pGV->fault_code, 2, pGV->ms.rpm < 50, pGV->ms.rpm > 200);

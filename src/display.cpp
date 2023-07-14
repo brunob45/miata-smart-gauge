@@ -1,9 +1,11 @@
 #include "display.h"
 
+#include "BtLogo.h"
 #include "git_sha.h"
 #include "global.h"
 #include "miata.h"
 #include "point.h"
+#include "temperature.h"
 
 #define TFT_CS 10
 #define TFT_DC 9
@@ -33,15 +35,17 @@ constexpr uint16_t rgb_to_565(int r, int g, int b)
     return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
 }
 
-uint16_t header_565_cmap[256];
-constexpr void get565cmap()
+uint16_t miata_565_cmap[256];
+uint16_t bt_565_cmap[256];
+uint16_t temp_565_cmap[256];
+constexpr void get565cmap(uint8_t cmap_rgb[][3], uint16_t* cmap_565, uint16_t size)
 {
-    for (uint16_t i = 0; i < 256; i++)
+    for (uint16_t i = 0; i < size; i++)
     {
-        const uint8_t r = header_data_cmap[i][0];
-        const uint8_t g = header_data_cmap[i][1];
-        const uint8_t b = header_data_cmap[i][2];
-        header_565_cmap[i] = rgb_to_565(r, g, b);
+        const uint8_t r = cmap_rgb[i][0];
+        const uint8_t g = cmap_rgb[i][1];
+        const uint8_t b = cmap_rgb[i][2];
+        cmap_565[i] = rgb_to_565(r, g, b);
     }
 }
 
@@ -116,9 +120,8 @@ void initGauge()
     tft.drawCircle(gaugeCenter.x(), gaugeCenter.y(), gaugeRadius - 12, DISPLAY_ACCENT1);
     // tft.writeRect(0, 0, gimp_image.width, gimp_image.height, (uint16_t*)gimp_image.pixel_data);
 
-    tft.setTextSize(2);
-    tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
     tft.setTextColor(0x7fe2);
+    tft.setTextSize(2);
 
     int16_t a = -17;
     for (int i = 0; i < 9; i++)
@@ -161,8 +164,8 @@ void updateGauge()
     tft.drawCircle(gaugeCenter.x(), gaugeCenter.y(), 9, DISPLAY_ACCENT2);
     tft.drawCircle(gaugeCenter.x(), gaugeCenter.y(), 8, DISPLAY_ACCENT1);
 
-    tft.setTextSize(4);
     tft.setTextColor(DISPLAY_FG1, GAUGE_BG);
+    tft.setTextSize(4);
     tft.setCursor(220, 205);
 
     for (int i = 0; i < 4 - numSize(GV.ms.rpm); i++)
@@ -204,7 +207,12 @@ THD_FUNCTION(ThreadDisplay, arg)
 {
     GlobalVars* pGV = (GlobalVars*)arg;
 
-    get565cmap();
+    const int16_t oil_threshold = 5;
+    int16_t oilP;
+
+    get565cmap(miata_data_cmap, miata_565_cmap, 256);
+    get565cmap(bt_data_cmap, bt_565_cmap, 256);
+    get565cmap(temp_data_cmap, temp_565_cmap, 256);
 
     pinMode(A6, INPUT); // Night lights input
     pinMode(6, OUTPUT); // Brightness contol pin
@@ -215,7 +223,7 @@ THD_FUNCTION(ThreadDisplay, arg)
     tft.useFrameBuffer(true);
     tft.setRotation(3);
 
-    tft.writeRect8BPP(0, 0, width, height, header_data, header_565_cmap);
+    tft.writeRect8BPP(0, 0, miata_width, miata_height, miata_data, miata_565_cmap);
     tft.updateScreenAsync();
     tft.waitUpdateAsyncComplete();
 
@@ -235,76 +243,154 @@ THD_FUNCTION(ThreadDisplay, arg)
         updateGauge();
         updateAccelGauge(66, 124, 32);
 
-        tft.setTextSize(4);
-        tft.setTextColor(ILI9341_GREENYELLOW, ILI9341_BLACK);
-
-        tft.setCursor(28, 12);
-        printNum(pGV->ms.egocor);
-
-        tft.setCursor(28, 46);
-        printNum(pGV->ltt.error * 1000);
-
-        if (pGV->ltt.engaged)
+        const int16_t scale_width = 96;
+        if (pGV->ltt.error > 0.0f)
         {
-            tft.fillCircle(6, 240-50, 4, ILI9341_GREEN);
-        }
-        else
-        {
-            tft.drawCircle(6, 240-50, 4, ILI9341_GREEN);
-        }
-        if (pGV->ltt.needBurn)
-        {
-            tft.fillCircle(6, 240-35, 4, ILI9341_YELLOW);
-        }
-        else
-        {
-            tft.drawCircle(6, 240-35, 4, ILI9341_YELLOW);
-        }
-        if (pGV->temperature > 85)
-        {
-            tft.fillCircle(6, 240-20, 4, ILI9341_RED);
-        }
-        else
-        {
-            tft.drawCircle(6, 240-20, 4, ILI9341_RED);
-        }
-
-        tft.setTextSize(1);
-        for (int j = 0; j < 16; j++)
-        {
-            for (int i = 0; i < 16; i++)
+            // ltt.error => [0.5;1.5]
+            float ego_scale = (pGV->ltt.error < 1) ? (1.0f / pGV->ltt.error) : pGV->ltt.error;
+            // ego_scale => [1.0;2.0]
+            ego_scale = (ego_scale - 1) * 2;
+            // ego_scale => [0.0;2.0]
+            if (ego_scale > 1.0f)
             {
-                const uint8_t index = i + j * 16;
-                uint16_t color = rgb_to_565(50, 50, 50);
-                if ((i == pGV->ltt.x[0] || i == pGV->ltt.x[1]) &&
-                    (j == pGV->ltt.y[0] || j == pGV->ltt.y[1]))
-                {
-                    color = ILI9341_YELLOW;
-                }
-                else if (pGV->ltt.err[index] == EGOERR::RICH)
-                {
-                    color = ILI9341_CYAN;
-                }
-                else if (pGV->ltt.err[index] == EGOERR::LEAN)
-                {
-                    color = ILI9341_ORANGE;
-                }
-                else if (pGV->ltt.err[index] == EGOERR::OK)
-                {
-                    color = ILI9341_GREEN;
-                }
+                ego_scale = 1.0f;
+            }
+            // ego_scale => [0.0;1.0]
+            if (pGV->ltt.error > 1)
+            {
+                ego_scale = -ego_scale;
+            }
+            // ego_scale => -1.0 = 22 AFR, 1.0 = 9.8 AFR
 
-                const int sizex = 6, sizey = 4;
-                tft.fillRect(sizex * i + 16, -sizey * j + (240 - sizey), sizex, sizey, color);
+            const int16_t offset = ego_scale * scale_width / 2;
+            const int16_t center = 28 + scale_width / 2;
+            if (offset < 0)
+            {
+                tft.fillRect(center + offset, 12, -offset, 34, ILI9341_GREENYELLOW);
+            }
+            else
+            {
+                tft.fillRect(center, 12, offset, 34, ILI9341_GREENYELLOW);
+            }
+        }
+        tft.drawRect(28, 12, scale_width, 34, ILI9341_WHITE);
+
+        tft.setTextColor(ILI9341_GREENYELLOW, ILI9341_BLACK);
+        tft.setTextSize(1);
+        tft.setCursor(28 - 9, 48);
+        tft.print("2/3");
+
+        tft.setCursor(28 + 96 / 2 - 9, 48);
+        tft.print("2/2");
+
+        tft.setCursor(28 + 96 - 9, 48);
+        tft.print("3/2");
+
+        // const float oil_a = -4.47e-3;
+        // const float oil_b = -0.185f;
+        // const float oil_c = 136.0f;
+        // threshold filter
+        if (pGV->ms.sensors10 > oilP + oil_threshold)
+        {
+            oilP = pGV->ms.sensors10 - oil_threshold;
+        }
+        else if (pGV->ms.sensors10 < oilP - oil_threshold)
+        {
+            oilP = pGV->ms.sensors10 + oil_threshold;
+        }
+
+        tft.setTextSize(3);
+        tft.setCursor(16, 180);
+        if (pGV->ms.sensors10 == 0)
+        {
+            tft.print("...?");
+        }
+        else
+        {
+            // const float oilP = oil_a * pGV->ms.sensors10 * pGV->ms.sensors10 + oil_b * pGV->ms.sensors10 + oil_c;
+            if (oilP < 0)
+            {
+                tft.print("LOW!");
+            }
+            else
+            {
+                printNum(oilP * 30.0 / 1.024); // oilP is ASD, convert to mV
             }
         }
 
-        tft.setCursor(45, 2);
-        tft.setTextSize(1);
-        tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
+        tft.setCursor(16, 180 + 9 * 3);
+        printNum(pGV->ltt.error * 1000);
 
+        // if (pGV->ltt.engaged)
+        // {
+        //     tft.fillCircle(6, 240 - 50, 4, ILI9341_GREEN);
+        // }
+        // else
+        // {
+        //     tft.drawCircle(6, 240 - 50, 4, ILI9341_GREEN);
+        // }
+        // if (pGV->ltt.needBurn)
+        // {
+        //     tft.fillCircle(6, 240 - 35, 4, ILI9341_YELLOW);
+        // }
+        // else
+        // {
+        //     tft.drawCircle(6, 240 - 35, 4, ILI9341_YELLOW);
+        // }
+        static bool overtemp;
+        if (pGV->temperature > 85)
+        {
+            overtemp = true;
+        }
+        else if (pGV->temperature < 82)
+        {
+            overtemp = false;
+        }
+        if (overtemp || millis() < 7'000)
+        {
+            tft.writeRect8BPP(130, 16, temp_width, temp_height, temp_data, temp_565_cmap);
+        }
+
+        // tft.setTextSize(1);
+        // for (int j = 0; j < 16; j++)
+        // {
+        //     for (int i = 0; i < 16; i++)
+        //     {
+        //         const uint8_t index = i + j * 16;
+        //         uint16_t color = rgb_to_565(50, 50, 50);
+        //         if ((i == pGV->ltt.x[0] || i == pGV->ltt.x[1]) &&
+        //             (j == pGV->ltt.y[0] || j == pGV->ltt.y[1]))
+        //         {
+        //             color = ILI9341_YELLOW;
+        //         }
+        //         else if (pGV->ltt.err[index] == EGOERR::RICH)
+        //         {
+        //             color = ILI9341_CYAN;
+        //         }
+        //         else if (pGV->ltt.err[index] == EGOERR::LEAN)
+        //         {
+        //             color = ILI9341_ORANGE;
+        //         }
+        //         else if (pGV->ltt.err[index] == EGOERR::OK)
+        //         {
+        //             color = ILI9341_GREEN;
+        //         }
+
+        //         const int sizex = 6, sizey = 4;
+        //         tft.fillRect(sizex * i + 16, -sizey * j + (240 - sizey), sizex, sizey, color);
+        //     }
+        // }
+
+        tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
+        tft.setTextSize(1);
+        tft.setCursor(45, 2);
         tft.print(GIT_SHA);
-        
+
+        if (GV.ms.sensors9 > 300 || millis() < 7'000)
+        {
+            tft.writeRect8BPP(145, 16, bt_width, bt_height, bt_data, bt_565_cmap);
+        }
+
         updateDisplay();
     }
 }

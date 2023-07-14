@@ -1,7 +1,7 @@
 /*  GIMP header image file format (INDEXED): /home/bruno/projets/bb_dash/miata.h  */
 
-static unsigned int width = 320;
-static unsigned int height = 240;
+static unsigned int miata_width = 320;
+static unsigned int miata_height = 240;
 
 /*  Call this macro repeatedly.  After each use, the pixel data can be extracted  */
 
@@ -11,7 +11,7 @@ pixel[1] = header_data_cmap[(unsigned char)data[0]][1]; \
 pixel[2] = header_data_cmap[(unsigned char)data[0]][2]; \
 data ++; }
 
-static unsigned char header_data_cmap[256][3] = {
+static unsigned char miata_data_cmap[256][3] = {
 	{  0,  0,  0},
 	{  1,  1,  1},
 	{  2,  2,  2},
@@ -269,7 +269,7 @@ static unsigned char header_data_cmap[256][3] = {
 	{255,255,255},
 	{255,255,255}
 	};
-static unsigned char header_data[] = {
+static unsigned char miata_data[] = {
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,

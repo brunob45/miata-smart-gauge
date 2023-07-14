@@ -12,7 +12,7 @@ namespace
 Adafruit_MSA301 msa;
 
 // filter constant = "refresh rate" / "signal lag" (in seconds)
-FilterClass fx(0.020f / 0.40f), fy(0.020f / 0.40f), fz(0.020f / 0.40f);
+FilterClass fx(0.020f / 0.60f), fy(0.020f / 0.60f), fz(0.020f / 0.60f);
 FilterClass gx(0.020f / 10.0f), gy(0.020f / 10.0f), gz(0.020f / 10.0f);
 } // namespace
 

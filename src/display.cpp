@@ -208,7 +208,7 @@ THD_FUNCTION(ThreadDisplay, arg)
     GlobalVars* pGV = (GlobalVars*)arg;
 
     const int16_t oil_threshold = 5;
-    int16_t oilP;
+    int16_t oilP = 0;
 
     get565cmap(miata_data_cmap, miata_565_cmap, 256);
     get565cmap(bt_data_cmap, bt_565_cmap, 256);

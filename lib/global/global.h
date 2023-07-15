@@ -62,6 +62,7 @@ struct GlobalVars
 
     struct
     {
+        float w;
         float x;
         float y;
         float z;

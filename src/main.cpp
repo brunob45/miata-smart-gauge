@@ -53,6 +53,8 @@ THD_FUNCTION(ThreadMain, arg)
     uint16_t last_fault = 0;
     uint32_t last_fault_change = 0;
 
+    uint32_t last_tx = 0;
+
     for (;;)
     {
         Speedo::update();
@@ -86,6 +88,18 @@ THD_FUNCTION(ThreadMain, arg)
 
         const uint16_t waSize = chUnusedThreadStack(waThdMain, sizeof(waThdMain));
         pGV->waSize = min(pGV->waSize, waSize);
+
+        if (millis() - last_tx > 500)
+        {
+            last_tx = millis();
+            Serial.print(GV.accel.w);
+            Serial.print(',');
+            Serial.print(GV.accel.x);
+            Serial.print(',');
+            Serial.print(GV.accel.y);
+            Serial.print(',');
+            Serial.println(GV.accel.z);
+        }
 
         chThdSleepMilliseconds(0); // tickless OS, yield control to other threads
     }

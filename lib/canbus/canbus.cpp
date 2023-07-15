@@ -464,8 +464,8 @@ bool rx_command(const CAN_message_t& msg)
     case MSG_TYPE::MSG_RSP:
     case MSG_TYPE::MSG_CMD:
     {
-        Serial.print("MSG_CMD ");
-        Serial.println(msg.buf[0]);
+        // Serial.print("MSG_CMD ");
+        // Serial.println(msg.buf[0]);
         requestPending = false;
 
         if (header.table == 9 && header.offset >= 256 && header.offset <= (512 - msg.len))

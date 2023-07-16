@@ -55,9 +55,9 @@ void update(void)
     avgindex = (avgindex + 1) % avgsize;
     Quaternion avg = avgsum * (1.0 / avgsize);
 
-    GV.accel.x = avg.x + 0.07f;
-    GV.accel.y = avg.y - 0.07f;
-    GV.accel.z = avg.z - 9.57f;
+    GV.accel.x = avg.b + 0.07f;
+    GV.accel.y = avg.c - 0.07f;
+    GV.accel.z = avg.d - 9.57f;
 }
 
 } // namespace Accel

@@ -38,7 +38,7 @@ void update(void)
 
     deltat = fusion.deltatUpdate();                                        // this have to be done before calling the fusion update
     fusion.MahonyUpdate(                                                   // mahony is suggested if there isn't the mag and the mcu is slow
-        gyro.gyro.z + 0.02f, gyro.gyro.y + 0.01f, -gyro.gyro.x + 0.01f,    // correct gyro offset to minimize drift
+        gyro.gyro.z + 0.02f, gyro.gyro.y + 0.01f, -gyro.gyro.x - 0.01f,    // correct gyro offset to minimize drift
         accel.acceleration.z, accel.acceleration.y, -accel.acceleration.x, // invert x & z axis to orient the board correctly
         deltat);
 
@@ -55,9 +55,9 @@ void update(void)
     avgindex = (avgindex + 1) % avgsize;
     Quaternion avg = avgsum * (1.0 / avgsize);
 
-    GV.accel.x = avg.b + 0.07f;
-    GV.accel.y = avg.c - 0.07f;
-    GV.accel.z = avg.d - 9.57f;
+    GV.accel.x = avg.x + 0.07f;
+    GV.accel.y = avg.y - 0.07f;
+    GV.accel.z = avg.z - 9.57f;
 }
 
 } // namespace Accel

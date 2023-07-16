@@ -34,30 +34,39 @@ void update(void)
     // Update accel values
     mpu.getEvent(&accel, &gyro, &temp);
 
-    Quaternion q(accel.acceleration.z, accel.acceleration.y, -accel.acceleration.x);
+    // invert x & z axis to orient the board correctly
+    const float ax = accel.acceleration.z * 0.969367589f + 0.465296443f;
+    const float ay = accel.acceleration.y * 0.993920973f + 0.079513678f;
+    const float az = accel.acceleration.x * 0.991911021f - 0.386845298f;
+    Quaternion qa(ax, ay, -az);
 
-    deltat = fusion.deltatUpdate();                                        // this have to be done before calling the fusion update
-    fusion.MahonyUpdate(                                                   // mahony is suggested if there isn't the mag and the mcu is slow
-        gyro.gyro.z + 0.02f, gyro.gyro.y + 0.01f, -gyro.gyro.x - 0.01f,    // correct gyro offset to minimize drift
-        accel.acceleration.z, accel.acceleration.y, -accel.acceleration.x, // invert x & z axis to orient the board correctly
+    // correct gyro offset to minimize drift
+    const float gx = gyro.gyro.z + 0.01610f;
+    const float gy = gyro.gyro.y + 0.01491f;
+    const float gz = gyro.gyro.x + 0.01203f;
+    Quaternion qg(gx, gy, -gz);
+
+    deltat = fusion.deltatUpdate(); // this have to be done before calling the fusion update
+    fusion.MahonyUpdate(            // mahony is suggested if there isn't the mag and the mcu is slow
+        qg.x, qg.y, qg.z,
+        qa.x, qa.y, qa.z,
         deltat);
 
-    Quaternion q2;
-    q2 = Quaternion::from_euler_rotation(
+    Quaternion q2 = Quaternion::from_euler_rotation(
         fusion.getRollRadians(),
         fusion.getPitchRadians(),
         0); // fusion.getYawRadians()); // ignore yaw orientation
 
     // moving window filter
     avgsum += (avgbuf[avgindex] * -1);
-    avgbuf[avgindex] = q2.rotate(q); // rotate acceleration by orientation to get the Z axis pointing up
+    avgbuf[avgindex] = q2.rotate(qa); // rotate acceleration by orientation to get the Z axis pointing up
     avgsum += avgbuf[avgindex];
     avgindex = (avgindex + 1) % avgsize;
     Quaternion avg = avgsum * (1.0 / avgsize);
 
-    GV.accel.x = avg.b + 0.07f;
-    GV.accel.y = avg.c - 0.07f;
-    GV.accel.z = avg.d - 9.57f;
+    GV.accel.x = avg.x;
+    GV.accel.y = avg.y;
+    GV.accel.z = avg.z - 9.81f; // remove gravity
 }
 
 } // namespace Accel

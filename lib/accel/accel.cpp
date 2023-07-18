@@ -16,11 +16,8 @@ sensors_event_t accel, gyro, temp;
 SF fusion;
 float deltat;
 
-// moving window filter
-const int avgsize = 50;
-Quaternion avgbuf[avgsize];
-Quaternion avgsum;
-int avgindex;
+Quaternion filter;
+const int filtersize = 20;
 } // namespace
 
 void init(void)
@@ -35,9 +32,9 @@ void update(void)
     mpu.getEvent(&accel, &gyro, &temp);
 
     // invert x & z axis to orient the board correctly
-    const float ax = accel.acceleration.z * 0.969367589f + 0.465296443f;
-    const float ay = accel.acceleration.y * 0.993920973f + 0.079513678f;
-    const float az = accel.acceleration.x * 0.991911021f - 0.386845298f;
+    const float ax = accel.acceleration.z * 0.969367589f + 0.465296443f; // [-10.60,9.64]
+    const float ay = accel.acceleration.y * 0.993920973f + 0.079513678f; // [-9.95,9.79]
+    const float az = accel.acceleration.x * 0.991911021f - 0.386845298f; // [-9.50,10.28]
     Quaternion qa(ax, ay, -az);
 
     // correct gyro offset to minimize drift
@@ -52,21 +49,22 @@ void update(void)
         qa.x, qa.y, qa.z,
         deltat);
 
-    Quaternion q2 = Quaternion::from_euler_rotation(
-        fusion.getRollRadians(),
-        fusion.getPitchRadians(),
-        0); // fusion.getYawRadians()); // ignore yaw orientation
+    Quaternion qf;
+    memcpy((void*)&qf, (void*)fusion.getQuat(), sizeof(float) * 4);
+    qf = qf.to_euler();
 
-    // moving window filter
-    avgsum += (avgbuf[avgindex] * -1);
-    avgbuf[avgindex] = q2.rotate(qa); // rotate acceleration by orientation to get the Z axis pointing up
-    avgsum += avgbuf[avgindex];
-    avgindex = (avgindex + 1) % avgsize;
-    Quaternion avg = avgsum * (1.0 / avgsize);
+    qf = Quaternion::from_euler_rotation(
+        qf.roll,
+        qf.pitch,
+        0); // qfe.yaw); // ignore yaw orientation
 
-    GV.accel.x = avg.x;
-    GV.accel.y = avg.y;
-    GV.accel.z = avg.z - 9.81f; // remove gravity
+    qa = qf.rotate(qa); // rotate acceleration by orientation to get the Z axis pointing up
+
+    filter = (filter * (filtersize-1) + qa) * (1.0f / filtersize);
+
+    GV.accel.x = filter.x;
+    GV.accel.y = filter.y;
+    GV.accel.z = filter.z - 9.81f; // remove gravity
 }
 
 } // namespace Accel

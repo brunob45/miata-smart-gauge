@@ -208,21 +208,29 @@ void updateBattGauge(GlobalVars* pGV)
     const int16_t oil_threshold = 5;
 
     // battery voltage compensation
-    const float x = 120.0f * pGV->ms.sensors10 / pGV->ms.batt;
+    float adc_value = pGV->ms.sensors10;
+    if (pGV->ms.batt > 0)
+    {
+        adc_value *= 120.0f / pGV->ms.batt;
+    }
 
     // threshold filter
-    if (x > oilP + oil_threshold)
+    if (adc_value < oil_threshold)
     {
-        oilP = x - oil_threshold;
+        oilP = 0;
     }
-    else if (x < oilP - oil_threshold)
+    else if (adc_value > oilP + oil_threshold)
     {
-        oilP = x + oil_threshold;
+        oilP = adc_value - oil_threshold;
+    }
+    else if (adc_value + oil_threshold < oilP)
+    {
+        oilP = adc_value + oil_threshold;
     }
 
     tft.setTextSize(3);
     tft.setCursor(16, 180);
-    if (x == 0)
+    if (adc_value == 0)
     {
         tft.print("...?");
     }
@@ -238,7 +246,6 @@ void updateBattGauge(GlobalVars* pGV)
     }
 
     tft.setCursor(16, 180 + 9 * 3);
-    // printNum(pGV->ltt.error * 1000);
     printNum(pGV->ms.batt);
 }
 

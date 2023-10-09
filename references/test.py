@@ -50,12 +50,12 @@ class Quaternion:
         y = euler.pitch
         z = euler.yaw
 
-        if y > 1.55:
-            z -= x
-            x = 0
-        elif y < -1.55:
-            z += x
-            x = 0
+        # if y > 1.55:
+        #     z -= x
+        #     x = 0
+        # elif y < -1.55:
+        #     z += x
+        #     x = 0
 
         c1 = np.cos(x / 2.0)
         c2 = np.cos(y / 2.0)
@@ -89,12 +89,12 @@ tests = (
     [40, 90, 0]
 )
 
-def do_test(mul):
+def do_test(j):
     for test in tests:
         e1 = Euler()
         q1 = Quaternion()
 
-        e1.from_angles(test[0], mul*test[1], test[2])
+        e1.from_angles(test[0], j, test[2])
         print(e1)
 
         q1.from_euler(e1)
@@ -107,4 +107,4 @@ def do_test(mul):
         print(e1, q1)
 
 # do_test(1)
-do_test(-1)
+do_test(-90)

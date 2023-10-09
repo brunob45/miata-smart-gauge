@@ -304,11 +304,6 @@ void updateIcons(GlobalVars* pGV)
         tft.writeRect8BPP(130, 16, temp_width, temp_height, temp_data, temp_565_cmap);
     }
 
-    tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
-    tft.setTextSize(1);
-    tft.setCursor(45, 2);
-    tft.print(GIT_SHA);
-
     if (GV.ms.sensors9 > 300 || millis() < 7'000)
     {
         tft.writeRect8BPP(145, 16, bt_width, bt_height, bt_data, bt_565_cmap);
@@ -334,6 +329,12 @@ THD_FUNCTION(ThreadDisplay, arg)
     tft.setRotation(3);
 
     tft.writeRect8BPP(0, 0, miata_width, miata_height, miata_data, miata_565_cmap);
+
+    tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
+    tft.setTextSize(1);
+    tft.setCursor(45, 2);
+    tft.print(GIT_SHA);
+
     tft.updateScreenAsync();
     tft.waitUpdateAsyncComplete();
 

@@ -14,7 +14,6 @@ namespace
 Adafruit_MPU6050 mpu;
 sensors_event_t accel, gyro, temp;
 SF fusion;
-float deltat;
 
 Quaternion filter;
 const int filtersize = 50;

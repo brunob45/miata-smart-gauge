@@ -393,8 +393,8 @@ bool rx_broadcast(const CAN_message_t& msg)
         GV.ms.aircor = (msg.buf[6] << 8) | (msg.buf[7] << 0);
         return true;
     case 15:
-        GV.ms.sensors9 = (msg.buf[0] << 8) | (msg.buf[1] << 0);
-        GV.ms.sensors10 = (msg.buf[2] << 8) | (msg.buf[3] << 0);
+        GV.ms.sensors9 = (msg.buf[0] << 8) | (msg.buf[1] << 0); // adc6
+        GV.ms.sensors10 = (msg.buf[2] << 8) | (msg.buf[3] << 0); // adc7
         // 4-7 unused
     case 59:
         // 0-5 unused

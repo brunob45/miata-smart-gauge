@@ -207,36 +207,34 @@ void updateBattGauge(GlobalVars* pGV)
 {
     const int16_t oil_threshold = 5;
 
-    // const float oil_a = -4.47e-3;
-    // const float oil_b = -0.185f;
-    // const float oil_c = 136.0f;
+    // battery voltage compensation
+    const float x = 120.0f * pGV->ms.sensors10 / pGV->ms.batt;
+
     // threshold filter
-    if (pGV->ms.sensors10 > oilP + oil_threshold)
+    if (x > oilP + oil_threshold)
     {
-        oilP = pGV->ms.sensors10 - oil_threshold;
+        oilP = x - oil_threshold;
     }
-    else if (pGV->ms.sensors10 < oilP - oil_threshold)
+    else if (x < oilP - oil_threshold)
     {
-        oilP = pGV->ms.sensors10 + oil_threshold;
+        oilP = x + oil_threshold;
     }
 
     tft.setTextSize(3);
     tft.setCursor(16, 180);
-    if (pGV->ms.sensors10 == 0)
+    if (x == 0)
     {
         tft.print("...?");
     }
+    else if (oilP > 134)
+    {
+        tft.print("LOW!");
+    }
     else
     {
-        // const float oilP = oil_a * pGV->ms.sensors10 * pGV->ms.sensors10 + oil_b * pGV->ms.sensors10 + oil_c;
-        if (oilP < 0)
-        {
-            tft.print("LOW!");
-        }
-        else
-        {
-            printNum(oilP * 30.0 / 1.024); // oilP is ASD, convert to mV
-        }
+        const float m = -78.825f;
+        const float b = 10565.0f;
+        printNum(m * oilP + b); // in g/cm2
     }
 
     tft.setCursor(16, 180 + 9 * 3);

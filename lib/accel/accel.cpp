@@ -17,7 +17,7 @@ SF fusion;
 float deltat;
 
 Quaternion filter;
-const int filtersize = 20;
+const int filtersize = 50;
 } // namespace
 
 void init(void)
@@ -43,22 +43,22 @@ void update(void)
     const float gz = gyro.gyro.x + 0.01203f;
     Quaternion qg(gx, gy, -gz);
 
-    deltat = fusion.deltatUpdate(); // this have to be done before calling the fusion update
-    fusion.MahonyUpdate(            // mahony is suggested if there isn't the mag and the mcu is slow
-        qg.x, qg.y, qg.z,
-        qa.x, qa.y, qa.z,
-        deltat);
+    // deltat = fusion.deltatUpdate(); // this have to be done before calling the fusion update
+    // fusion.MahonyUpdate(            // mahony is suggested if there isn't the mag and the mcu is slow
+    //     qg.x, qg.y, qg.z,
+    //     qa.x, qa.y, qa.z,
+    //     deltat);
 
-    Quaternion qf;
-    memcpy((void*)&qf, (void*)fusion.getQuat(), sizeof(float) * 4);
-    qf = qf.to_euler();
+    // Quaternion qf;
+    // memcpy((void*)&qf, (void*)fusion.getQuat(), sizeof(float) * 4);
+    // qf = qf.to_euler();
 
-    qf = Quaternion::from_euler_rotation(
-        qf.roll,
-        qf.pitch,
-        0); // qfe.yaw); // ignore yaw orientation
+    // qf = Quaternion::from_euler_rotation(
+    //     qf.roll,
+    //     qf.pitch,
+    //     0); // qfe.yaw); // ignore yaw orientation
 
-    qa = qf.rotate(qa); // rotate acceleration by orientation to get the Z axis pointing up
+    // qa = qf.rotate(qa); // rotate acceleration by orientation to get the Z axis pointing up
 
     filter = (filter * (filtersize-1) + qa) * (1.0f / filtersize);
 

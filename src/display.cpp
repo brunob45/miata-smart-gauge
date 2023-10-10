@@ -207,6 +207,13 @@ void updateBattGauge(GlobalVars* pGV)
 {
     const int16_t oil_threshold = 5;
 
+    // const float m = -78.825f; // reading too high
+    // const float b = 10565.0f;
+
+    const float m = -70.9425f;
+    const float b = 9008.5f;
+    const int16_t x_min = (0 - b) / m;
+
     // battery voltage compensation
     float adc_value = pGV->ms.sensors10;
     if (pGV->ms.batt > 0)
@@ -234,14 +241,12 @@ void updateBattGauge(GlobalVars* pGV)
     {
         tft.print("...?");
     }
-    else if (oilP > 134)
+    else if (oilP > x_min)
     {
         tft.print("LOW!");
     }
     else
     {
-        const float m = -78.825f;
-        const float b = 10565.0f;
         printNum(m * oilP + b); // in g/cm2
     }
 

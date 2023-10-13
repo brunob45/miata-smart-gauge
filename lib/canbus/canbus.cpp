@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <FlexCAN_T4.h>
+#include <filter_window.h>
 
 #include "global.h"
 
@@ -25,6 +26,9 @@ bool afrIsValid = false, afrWasValid = false;
 uint32_t afrTimeValid = 0;
 uint16_t last_pw = 0;
 int16_t last_map = 0;
+
+FilterWindow<int16_t, 10> filter_batv;
+FilterWindow<int16_t, 10> filter_adc7;
 
 inline int16_t F_TO_C(int16_t x)
 {
@@ -365,7 +369,7 @@ bool rx_broadcast(const CAN_message_t& msg)
         GV.ms.pw1 = (msg.buf[2] << 8) | (msg.buf[3] << 0);
         GV.ms.pw2 = (msg.buf[4] << 8) | (msg.buf[5] << 0);
         GV.ms.rpm = (msg.buf[6] << 8) | (msg.buf[7] << 0);
-        return true;
+        break;
     case 1:
         GV.ms.adv = (msg.buf[0] << 8) | (msg.buf[1] << 0);
         GV.ms.squirt = msg.buf[2];
@@ -373,38 +377,39 @@ bool rx_broadcast(const CAN_message_t& msg)
         GV.ms.afrtgt1 = msg.buf[4];
         GV.ms.afrtgt2 = msg.buf[5];
         // 6-7 unused
-        return true;
+        break;
     case 2:
         GV.ms.baro = (msg.buf[0] << 8) | (msg.buf[1] << 0);
         GV.ms.map = (msg.buf[2] << 8) | (msg.buf[3] << 0);
         GV.ms.mat = F_TO_C((msg.buf[4] << 8) | (msg.buf[5] << 0));
         GV.ms.clt = F_TO_C((msg.buf[6] << 8) | (msg.buf[7] << 0));
-        return true;
+        break;
     case 3:
         GV.ms.tps = (msg.buf[0] << 8) | (msg.buf[1] << 0);
-        GV.ms.batt = (msg.buf[2] << 8) | (msg.buf[3] << 0);
+        GV.ms.batt = filter_batv((msg.buf[2] << 8) | (msg.buf[3] << 0));
         GV.ms.afr1 = (msg.buf[4] << 8) | (msg.buf[5] << 0);
         GV.ms.afr2 = (msg.buf[6] << 8) | (msg.buf[7] << 0);
-        return true;
+        break;
     case 4:
         GV.ms.knock = (msg.buf[0] << 8) | (msg.buf[1] << 0);
         GV.ms.egocor1 = (msg.buf[2] << 8) | (msg.buf[3] << 0);
         GV.ms.egocor2 = (msg.buf[4] << 8) | (msg.buf[5] << 0);
         GV.ms.aircor = (msg.buf[6] << 8) | (msg.buf[7] << 0);
-        return true;
+        break;
     case 15:
         GV.ms.sensors9 = (msg.buf[0] << 8) | (msg.buf[1] << 0); // adc6
-        GV.ms.sensors10 = (msg.buf[2] << 8) | (msg.buf[3] << 0); // adc7
+        GV.ms.sensors10 = filter_adc7((msg.buf[2] << 8) | (msg.buf[3] << 0)); // adc7
         // 4-7 unused
     case 59:
         // 0-5 unused
         GV.ms.deadtime1 = (msg.buf[6] << 8) | (msg.buf[7] << 0);
         updateLongTermTrim();
-        return true;
+        break;
     default:
         // unknown id
         return false;
     }
+    return true;
 }
 
 bool rx_command(const CAN_message_t& msg)

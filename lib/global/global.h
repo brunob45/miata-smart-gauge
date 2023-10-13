@@ -31,7 +31,7 @@ struct GlobalVars
         int16_t clt;        // 0.1 deg C
         // 3
         int16_t tps;        // 0.1 %
-        int16_t batt;       // 0.1 V
+        int16_t batt;       // 0.01 V - 1 second filter
         int16_t afr1;       // 0.1 AFR
         int16_t afr2;       // 0.1 AFR
         // 4
@@ -40,8 +40,8 @@ struct GlobalVars
         int16_t egocor2;    // 0.1 %
         int16_t aircor;     // 0.1 %
         // 15
-        int16_t sensors9;
-        int16_t sensors10;
+        int16_t sensors9;   // ADC 0-1023
+        int16_t sensors10;  // ADC 0-10230 - 1 second filter
         // 59
         int16_t deadtime1;  // 0.001 ms
 

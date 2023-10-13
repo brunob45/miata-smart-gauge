@@ -205,34 +205,28 @@ void updateAccelGauge(uint16_t center_x, uint16_t center_y, uint16_t radius)
 int16_t oilP = 0;
 void updateBattGauge(GlobalVars* pGV)
 {
-    const int16_t oil_threshold = 5;
-
-    // const float m = -78.825f; // reading too high
-    // const float b = 10565.0f;
-
-    const float m = -70.9425f;
-    const float b = 9008.5f;
-    const int16_t x_min = (0 - b) / m;
+    const int16_t oil_threshold = 50;
 
     // battery voltage compensation
     float adc_value = pGV->ms.sensors10;
     if (pGV->ms.batt > 0)
     {
-        adc_value *= 120.0f / pGV->ms.batt;
+        adc_value *= 1200.0f / pGV->ms.batt;
     }
 
+    // const float m = -78.825f; // reading too high
+    // const float b = 10565.0f;
+
+    const float oilP_raw = -7.09425f * oilP + 9008.5f;
+
     // threshold filter
-    if (adc_value < oil_threshold)
+    if (oilP_raw > oilP + oil_threshold)
     {
-        oilP = 0;
+        oilP = oilP_raw - oil_threshold;
     }
-    else if (adc_value > oilP + oil_threshold)
+    else if (oilP_raw + oil_threshold < oilP)
     {
-        oilP = adc_value - oil_threshold;
-    }
-    else if (adc_value + oil_threshold < oilP)
-    {
-        oilP = adc_value + oil_threshold;
+        oilP = oilP_raw + oil_threshold;
     }
 
     tft.setTextSize(3);
@@ -241,13 +235,13 @@ void updateBattGauge(GlobalVars* pGV)
     {
         tft.print("...?");
     }
-    else if (oilP > x_min)
+    else if (oilP < 0)
     {
         tft.print("LOW!");
     }
     else
     {
-        printNum(m * oilP + b); // in g/cm2
+        printNum(oilP); // in g/cm2
     }
 
     tft.setCursor(16, 180 + 9 * 3);

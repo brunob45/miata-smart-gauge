@@ -217,7 +217,7 @@ void updateBattGauge(GlobalVars* pGV)
     // const float m = -78.825f; // reading too high
     // const float b = 10565.0f;
 
-    const float oilP_raw = -7.09425f * oilP + 9008.5f;
+    const float oilP_raw = -7.09425f * adc_value + 9008.5f;
 
     // threshold filter
     if (oilP_raw > oilP + oil_threshold)

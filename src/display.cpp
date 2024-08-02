@@ -7,6 +7,8 @@
 #include "point.h"
 #include "temperature.h"
 
+#include "lvgl.h"
+
 #define TFT_CS 10
 #define TFT_DC 9
 

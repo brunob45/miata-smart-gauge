@@ -27,5 +27,5 @@ with open("lib/git_sha/git_sha.h", "w+") as fp:
 
 print(version)
 
-shutil.copyfile("include/lv_conf", ".pio/libdeps/default/lvgl/")
+shutil.copyfile("include/lv_conf.h", ".pio/libdeps/default/lvgl/lv_conf.h")
 # Path("include/lv_conf.h").cp

@@ -17,7 +17,6 @@ struct AccelValue
 void init(void);
 void update(void);
 void print_debug(Print& p);
-AccelValue get();
 } // namespace Accel
 
 #endif // DASH_ACCEL_H

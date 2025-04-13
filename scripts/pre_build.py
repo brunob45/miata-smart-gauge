@@ -10,7 +10,7 @@ result = subprocess.run(
 version = result.stdout.strip()
 
 # check if the workspace is dirty
-result = subprocess.run(["git", "diff" "--quiet"], capture_output=True)
+result = subprocess.run(["git", "diff", "--quiet"], capture_output=True)
 if result.returncode > 0:
     # workspace is dirty
     version += "*"

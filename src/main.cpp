@@ -44,7 +44,6 @@ THD_FUNCTION(ThreadMain, arg)
         ARM_DWT_CTRL |= ARM_DWT_CTRL_CYCCNTENA;
     }
 
-
     Serial.begin(115200);
 
     Speedo::init();
@@ -52,6 +51,8 @@ THD_FUNCTION(ThreadMain, arg)
 
     uint16_t last_fault = 0;
     uint32_t last_fault_change = 0;
+
+    uint32_t last_tx = 0;
 
     for (;;)
     {
@@ -72,10 +73,10 @@ THD_FUNCTION(ThreadMain, arg)
             checkFault(&pGV->fault_code, 0, pGV->ms.clt > 1000, pGV->ms.clt <= 930); // 100C & 93C
 
             // Low oil pressure
-            //checkFault(&pGV->fault_code, 1, pGV->ms.sensors2 > 150, pGV->ms.sensors2 < 140);
+            // checkFault(&pGV->fault_code, 1, pGV->ms.sensors2 > 150, pGV->ms.sensors2 < 140);
 
             // Engine off
-            checkFault(&pGV->fault_code, 2, pGV->ms.rpm < 50, pGV->ms.rpm > 200);
+            checkFault(&pGV->fault_code, 2, pGV->ms.rpm<50, pGV->ms.rpm> 200);
 
             if (last_fault != pGV->fault_code)
             {
@@ -86,6 +87,18 @@ THD_FUNCTION(ThreadMain, arg)
 
         const uint16_t waSize = chUnusedThreadStack(waThdMain, sizeof(waThdMain));
         pGV->waSize = min(pGV->waSize, waSize);
+
+        if (millis() - last_tx > 80)
+        {
+            last_tx = millis();
+            Serial.print(GV.accel.w);
+            Serial.print(' ');
+            Serial.print(GV.accel.x);
+            Serial.print(' ');
+            Serial.print(GV.accel.y);
+            Serial.print(' ');
+            Serial.println(GV.accel.z);
+        }
 
         chThdSleepMilliseconds(0); // tickless OS, yield control to other threads
     }

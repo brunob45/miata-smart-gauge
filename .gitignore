@@ -2,3 +2,4 @@
 .vscode/
 debug.log
 lib/git_sha/
+~$*.xlsx

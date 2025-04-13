@@ -1,6 +1,8 @@
 #include "accel.h"
 
-#include <Adafruit_MSA301.h>
+#include <Adafruit_MPU6050.h>
+#include <Quaternion.h>
+#include <SensorFusion.h>
 
 #include "filter.h"
 #include "global.h"
@@ -9,176 +11,59 @@ namespace Accel
 {
 namespace
 {
-Adafruit_MSA301 msa;
+Adafruit_MPU6050 mpu;
+sensors_event_t accel, gyro, temp;
+SF fusion;
 
-// filter constant = "refresh rate" / "signal lag" (in seconds)
-FilterClass fx(0.020f / 0.60f), fy(0.020f / 0.60f), fz(0.020f / 0.60f);
-FilterClass gx(0.020f / 10.0f), gy(0.020f / 10.0f), gz(0.020f / 10.0f);
+Quaternion filter;
+const int filtersize = 50;
 } // namespace
-
-float AccelValue::norm()
-{
-    float n = x * x;
-    n += y * y;
-    n += z * z;
-    return sqrtf(n);
-}
 
 void init(void)
 {
     // Init MSA301
-    msa.begin();
-
-    // Read accel values
-    msa.read();
-
-    // Init filters to first reading
-    gx.reset(msa.x_g);
-    gy.reset(msa.y_g);
-    gz.reset(msa.z_g);
+    mpu.begin();
 }
 
 void update(void)
 {
     // Update accel values
-    msa.read();
+    mpu.getEvent(&accel, &gyro, &temp);
 
-    // Update gravity (low pass filter)
-    // Update accel (band pass filter)
-    GV.accel.x = fx.put(msa.x_g) - gx.put(msa.x_g);
-    GV.accel.y = fy.put(msa.y_g) - gy.put(msa.y_g);
-    GV.accel.z = fz.put(msa.z_g) - gz.put(msa.z_g);
-}
+    // invert x & z axis to orient the board correctly
+    const float ax = accel.acceleration.z * 0.969367589f + 0.465296443f; // [-10.60,9.64]
+    const float ay = accel.acceleration.y * 0.993920973f + 0.079513678f; // [-9.95,9.79]
+    const float az = accel.acceleration.x * 0.991911021f - 0.386845298f; // [-9.50,10.28]
+    Quaternion qa(ax, ay, -az);
 
-void print_debug(Print& p)
-{
-    // a.setDataRate(MSA301_DATARATE_125_HZ);
-    p.print("Data rate set to: ");
-    switch (msa.getDataRate())
-    {
-    case MSA301_DATARATE_1_HZ:
-        p.println("1 Hz");
-        break;
-    case MSA301_DATARATE_1_95_HZ:
-        p.println("1.95 Hz");
-        break;
-    case MSA301_DATARATE_3_9_HZ:
-        p.println("3.9 Hz");
-        break;
-    case MSA301_DATARATE_7_81_HZ:
-        p.println("7.81 Hz");
-        break;
-    case MSA301_DATARATE_15_63_HZ:
-        p.println("15.63 Hz");
-        break;
-    case MSA301_DATARATE_31_25_HZ:
-        p.println("31.25 Hz");
-        break;
-    case MSA301_DATARATE_62_5_HZ:
-        p.println("62.5 Hz");
-        break;
-    case MSA301_DATARATE_125_HZ:
-        p.println("125 Hz");
-        break;
-    case MSA301_DATARATE_250_HZ:
-        p.println("250 Hz");
-        break;
-    case MSA301_DATARATE_500_HZ:
-        p.println("500 Hz");
-        break;
-    case MSA301_DATARATE_1000_HZ:
-        p.println("1000 Hz");
-        break;
-    }
+    // correct gyro offset to minimize drift
+    const float gx = gyro.gyro.z + 0.01610f;
+    const float gy = gyro.gyro.y + 0.01491f;
+    const float gz = gyro.gyro.x + 0.01203f;
+    Quaternion qg(gx, gy, -gz);
 
-    //a.setPowerMode(MSA301_SUSPENDMODE);
-    p.print("Power mode set to: ");
-    switch (msa.getPowerMode())
-    {
-    case MSA301_NORMALMODE:
-        p.println("Normal");
-        break;
-    case MSA301_LOWPOWERMODE:
-        p.println("Low Power");
-        break;
-    case MSA301_SUSPENDMODE:
-        p.println("Suspend");
-        break;
-    }
+    // deltat = fusion.deltatUpdate(); // this have to be done before calling the fusion update
+    // fusion.MahonyUpdate(            // mahony is suggested if there isn't the mag and the mcu is slow
+    //     qg.x, qg.y, qg.z,
+    //     qa.x, qa.y, qa.z,
+    //     deltat);
 
-    //a.setBandwidth(MSA301_BANDWIDTH_31_25_HZ);
-    p.print("Bandwidth set to: ");
-    switch (msa.getBandwidth())
-    {
-    case MSA301_BANDWIDTH_1_95_HZ:
-        p.println("1.95 Hz");
-        break;
-    case MSA301_BANDWIDTH_3_9_HZ:
-        p.println("3.9 Hz");
-        break;
-    case MSA301_BANDWIDTH_7_81_HZ:
-        p.println("7.81 Hz");
-        break;
-    case MSA301_BANDWIDTH_15_63_HZ:
-        p.println("15.63 Hz");
-        break;
-    case MSA301_BANDWIDTH_31_25_HZ:
-        p.println("31.25 Hz");
-        break;
-    case MSA301_BANDWIDTH_62_5_HZ:
-        p.println("62.5 Hz");
-        break;
-    case MSA301_BANDWIDTH_125_HZ:
-        p.println("125 Hz");
-        break;
-    case MSA301_BANDWIDTH_250_HZ:
-        p.println("250 Hz");
-        break;
-    case MSA301_BANDWIDTH_500_HZ:
-        p.println("500 Hz");
-        break;
-    }
+    // Quaternion qf;
+    // memcpy((void*)&qf, (void*)fusion.getQuat(), sizeof(float) * 4);
+    // qf = qf.to_euler();
 
-    //a.setRange(MSA301_RANGE_2_G);
-    p.print("Range set to: ");
-    switch (msa.getRange())
-    {
-    case MSA301_RANGE_2_G:
-        p.println("+-2G");
-        break;
-    case MSA301_RANGE_4_G:
-        p.println("+-4G");
-        break;
-    case MSA301_RANGE_8_G:
-        p.println("+-8G");
-        break;
-    case MSA301_RANGE_16_G:
-        p.println("+-16G");
-        break;
-    }
+    // qf = Quaternion::from_euler_rotation(
+    //     qf.roll,
+    //     qf.pitch,
+    //     0); // qfe.yaw); // ignore yaw orientation
 
-    //a.setResolution(MSA301_RESOLUTION_14 );
-    p.print("Resolution set to: ");
-    switch (msa.getResolution())
-    {
-    case MSA301_RESOLUTION_14:
-        p.println("14 bits");
-        break;
-    case MSA301_RESOLUTION_12:
-        p.println("12 bits");
-        break;
-    case MSA301_RESOLUTION_10:
-        p.println("10 bits");
-        break;
-    case MSA301_RESOLUTION_8:
-        p.println("8 bits");
-        break;
-    }
-}
+    // qa = qf.rotate(qa); // rotate acceleration by orientation to get the Z axis pointing up
 
-AccelValue get()
-{
-    return AccelValue{fx.get(), fy.get(), fz.get()};
+    filter = (filter * (filtersize-1) + qa) * (1.0f / filtersize);
+
+    GV.accel.x = filter.x;
+    GV.accel.y = filter.y;
+    GV.accel.z = filter.z - 9.81f; // remove gravity
 }
 
 } // namespace Accel

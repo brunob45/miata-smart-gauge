@@ -133,7 +133,7 @@ void initGauge()
     }
 }
 
-void updateGauge()
+void updateTachoGauge()
 {
     static Point needle[2];
     static bool wasAlert = false;
@@ -193,22 +193,133 @@ void updateAccelGauge(uint16_t center_x, uint16_t center_y, uint16_t radius)
     tft.drawFastVLine(center_x, center_y - radius, radius * 2, DISPLAY_FG1);
 
     // update accel marker position
-    lastx = (-GV.accel.x * radius) + center_x;
-    lasty = (GV.accel.z * radius) + center_y;
+    lastx = (GV.accel.y * radius / 9.81f) + center_x;
+    lasty = (GV.accel.x * radius / 9.81f) + center_y;
 
     // draw accel marker
     tft.fillCircle(lastx, lasty, 4, DISPLAY_ACCENT1);
     // tft.drawLine(center_x, center_y, lastx, lasty, DISPLAY_FG2);
     init = true;
 }
+
+int16_t oilP = 0;
+void updateBattGauge(GlobalVars* pGV)
+{
+    const int16_t oil_threshold = 50;
+
+    // battery voltage compensation
+    float adc_value = pGV->ms.sensors10;
+    if (pGV->ms.batt > 0)
+    {
+        adc_value *= 1200.0f / pGV->ms.batt;
+    }
+
+    // const float m = -78.825f; // reading too high
+    // const float b = 10565.0f;
+
+    const float oilP_raw = -7.09425f * adc_value + 9008.5f;
+
+    // threshold filter
+    if (oilP_raw > oilP + oil_threshold)
+    {
+        oilP = oilP_raw - oil_threshold;
+    }
+    else if (oilP_raw + oil_threshold < oilP)
+    {
+        oilP = oilP_raw + oil_threshold;
+    }
+
+    tft.setTextSize(3);
+    tft.setCursor(16, 180);
+    if (adc_value == 0)
+    {
+        tft.print("...?");
+    }
+    else if (oilP < 0)
+    {
+        tft.print("LOW!");
+    }
+    else
+    {
+        printNum(oilP); // in g/cm2
+    }
+
+    tft.setCursor(16, 180 + 9 * 3);
+    printNum(pGV->ms.batt);
+}
+
+void updateEgoGauge(GlobalVars* pGV)
+{
+    const int16_t scale_width = 96;
+    if (pGV->ltt.error > 0.0f)
+    {
+        // ltt.error => [0.5;1.5]
+        float ego_scale = (pGV->ltt.error < 1) ? (1.0f / pGV->ltt.error) : pGV->ltt.error;
+        // ego_scale => [1.0;2.0]
+        ego_scale = (ego_scale - 1) * 2;
+        // ego_scale => [0.0;2.0]
+        if (ego_scale > 1.0f)
+        {
+            ego_scale = 1.0f;
+        }
+        // ego_scale => [0.0;1.0]
+        if (pGV->ltt.error > 1)
+        {
+            ego_scale = -ego_scale;
+        }
+        // ego_scale => -1.0 = 22 AFR, 1.0 = 9.8 AFR
+
+        const int16_t offset = ego_scale * scale_width / 2;
+        const int16_t center = 28 + scale_width / 2;
+        if (offset < 0)
+        {
+            tft.fillRect(center + offset, 12, -offset, 34, ILI9341_GREENYELLOW);
+        }
+        else
+        {
+            tft.fillRect(center, 12, offset, 34, ILI9341_GREENYELLOW);
+        }
+    }
+    tft.drawRect(28, 12, scale_width, 34, ILI9341_WHITE);
+
+    tft.setTextColor(ILI9341_GREENYELLOW, ILI9341_BLACK);
+    tft.setTextSize(1);
+    tft.setCursor(28 - 9, 48);
+    tft.print("2/3");
+
+    tft.setCursor(28 + 96 / 2 - 9, 48);
+    tft.print("2/2");
+
+    tft.setCursor(28 + 96 - 9, 48);
+    tft.print("3/2");
+}
+
+void updateIcons(GlobalVars* pGV)
+{
+    static bool overtemp;
+    if (pGV->temperature > 85)
+    {
+        overtemp = true;
+    }
+    else if (pGV->temperature < 82)
+    {
+        overtemp = false;
+    }
+    if (overtemp || millis() < 7'000)
+    {
+        tft.writeRect8BPP(130, 16, temp_width, temp_height, temp_data, temp_565_cmap);
+    }
+
+    if (GV.ms.sensors9 > 300 || millis() < 7'000)
+    {
+        tft.writeRect8BPP(145, 16, bt_width, bt_height, bt_data, bt_565_cmap);
+    }
+}
 } // namespace
 
 THD_FUNCTION(ThreadDisplay, arg)
 {
     GlobalVars* pGV = (GlobalVars*)arg;
-
-    const int16_t oil_threshold = 5;
-    int16_t oilP;
 
     get565cmap(miata_data_cmap, miata_565_cmap, 256);
     get565cmap(bt_data_cmap, bt_565_cmap, 256);
@@ -224,6 +335,12 @@ THD_FUNCTION(ThreadDisplay, arg)
     tft.setRotation(3);
 
     tft.writeRect8BPP(0, 0, miata_width, miata_height, miata_data, miata_565_cmap);
+
+    tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
+    tft.setTextSize(1);
+    tft.setCursor(45, 2);
+    tft.print(GIT_SHA);
+
     tft.updateScreenAsync();
     tft.waitUpdateAsyncComplete();
 
@@ -240,156 +357,11 @@ THD_FUNCTION(ThreadDisplay, arg)
 
         tft.fillScreen(ILI9341_BLACK);
 
-        updateGauge();
+        updateTachoGauge();
         updateAccelGauge(66, 124, 32);
-
-        const int16_t scale_width = 96;
-        if (pGV->ltt.error > 0.0f)
-        {
-            // ltt.error => [0.5;1.5]
-            float ego_scale = (pGV->ltt.error < 1) ? (1.0f / pGV->ltt.error) : pGV->ltt.error;
-            // ego_scale => [1.0;2.0]
-            ego_scale = (ego_scale - 1) * 2;
-            // ego_scale => [0.0;2.0]
-            if (ego_scale > 1.0f)
-            {
-                ego_scale = 1.0f;
-            }
-            // ego_scale => [0.0;1.0]
-            if (pGV->ltt.error > 1)
-            {
-                ego_scale = -ego_scale;
-            }
-            // ego_scale => -1.0 = 22 AFR, 1.0 = 9.8 AFR
-
-            const int16_t offset = ego_scale * scale_width / 2;
-            const int16_t center = 28 + scale_width / 2;
-            if (offset < 0)
-            {
-                tft.fillRect(center + offset, 12, -offset, 34, ILI9341_GREENYELLOW);
-            }
-            else
-            {
-                tft.fillRect(center, 12, offset, 34, ILI9341_GREENYELLOW);
-            }
-        }
-        tft.drawRect(28, 12, scale_width, 34, ILI9341_WHITE);
-
-        tft.setTextColor(ILI9341_GREENYELLOW, ILI9341_BLACK);
-        tft.setTextSize(1);
-        tft.setCursor(28 - 9, 48);
-        tft.print("2/3");
-
-        tft.setCursor(28 + 96 / 2 - 9, 48);
-        tft.print("2/2");
-
-        tft.setCursor(28 + 96 - 9, 48);
-        tft.print("3/2");
-
-        // const float oil_a = -4.47e-3;
-        // const float oil_b = -0.185f;
-        // const float oil_c = 136.0f;
-        // threshold filter
-        if (pGV->ms.sensors10 > oilP + oil_threshold)
-        {
-            oilP = pGV->ms.sensors10 - oil_threshold;
-        }
-        else if (pGV->ms.sensors10 < oilP - oil_threshold)
-        {
-            oilP = pGV->ms.sensors10 + oil_threshold;
-        }
-
-        tft.setTextSize(3);
-        tft.setCursor(16, 180);
-        if (pGV->ms.sensors10 == 0)
-        {
-            tft.print("...?");
-        }
-        else
-        {
-            // const float oilP = oil_a * pGV->ms.sensors10 * pGV->ms.sensors10 + oil_b * pGV->ms.sensors10 + oil_c;
-            if (oilP < 0)
-            {
-                tft.print("LOW!");
-            }
-            else
-            {
-                printNum(oilP * 30.0 / 1.024); // oilP is ASD, convert to mV
-            }
-        }
-
-        tft.setCursor(16, 180 + 9 * 3);
-        printNum(pGV->ltt.error * 1000);
-
-        // if (pGV->ltt.engaged)
-        // {
-        //     tft.fillCircle(6, 240 - 50, 4, ILI9341_GREEN);
-        // }
-        // else
-        // {
-        //     tft.drawCircle(6, 240 - 50, 4, ILI9341_GREEN);
-        // }
-        // if (pGV->ltt.needBurn)
-        // {
-        //     tft.fillCircle(6, 240 - 35, 4, ILI9341_YELLOW);
-        // }
-        // else
-        // {
-        //     tft.drawCircle(6, 240 - 35, 4, ILI9341_YELLOW);
-        // }
-        static bool overtemp;
-        if (pGV->temperature > 85)
-        {
-            overtemp = true;
-        }
-        else if (pGV->temperature < 82)
-        {
-            overtemp = false;
-        }
-        if (overtemp || millis() < 7'000)
-        {
-            tft.writeRect8BPP(130, 16, temp_width, temp_height, temp_data, temp_565_cmap);
-        }
-
-        // tft.setTextSize(1);
-        // for (int j = 0; j < 16; j++)
-        // {
-        //     for (int i = 0; i < 16; i++)
-        //     {
-        //         const uint8_t index = i + j * 16;
-        //         uint16_t color = rgb_to_565(50, 50, 50);
-        //         if ((i == pGV->ltt.x[0] || i == pGV->ltt.x[1]) &&
-        //             (j == pGV->ltt.y[0] || j == pGV->ltt.y[1]))
-        //         {
-        //             color = ILI9341_YELLOW;
-        //         }
-        //         else if (pGV->ltt.err[index] == EGOERR::RICH)
-        //         {
-        //             color = ILI9341_CYAN;
-        //         }
-        //         else if (pGV->ltt.err[index] == EGOERR::LEAN)
-        //         {
-        //             color = ILI9341_ORANGE;
-        //         }
-        //         else if (pGV->ltt.err[index] == EGOERR::OK)
-        //         {
-        //             color = ILI9341_GREEN;
-        //         }
-
-        //         const int sizex = 6, sizey = 4;
-        //         tft.fillRect(sizex * i + 16, -sizey * j + (240 - sizey), sizex, sizey, color);
-        //     }
-        // }
-
-        tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
-        tft.setTextSize(1);
-        tft.setCursor(45, 2);
-        tft.print(GIT_SHA);
-
-        if (GV.ms.sensors9 > 300 || millis() < 7'000)
-        {
-            tft.writeRect8BPP(145, 16, bt_width, bt_height, bt_data, bt_565_cmap);
-        }
+        updateEgoGauge(pGV);
+        updateBattGauge(pGV);
+        updateIcons(pGV);
 
         updateDisplay();
     }

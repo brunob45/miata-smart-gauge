@@ -73,6 +73,8 @@ void update(void)
         Serial.print(fusion.getPitch());
         Serial.print(',');
         Serial.print(fusion.getRoll());
+        Serial.print(',');
+        Serial.print(temp.temperature);
         Serial.println();
     }
     // Quaternion qf;

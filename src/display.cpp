@@ -114,6 +114,7 @@ void printNum(int16_t num)
 
 void initGauge()
 {
+    // draw speedo background
     tft.fillCircle(gaugeCenter.x(), gaugeCenter.y(), gaugeRadius + 12, DISPLAY_ACCENT2);
     tft.drawCircle(gaugeCenter.x(), gaugeCenter.y(), gaugeRadius + 11, GAUGE_BG);
     tft.fillCircle(gaugeCenter.x(), gaugeCenter.y(), gaugeRadius - 12, GAUGE_BG);
@@ -123,6 +124,7 @@ void initGauge()
     tft.setTextColor(0x7fe2);
     tft.setTextSize(2);
 
+    // draw numbers around speedo
     int16_t a = -17;
     for (int i = 0; i < 9; i++)
     {
@@ -250,48 +252,63 @@ void updateBattGauge(GlobalVars* pGV)
 
 void updateEgoGauge(GlobalVars* pGV)
 {
-    const int16_t scale_width = 96;
-    if (pGV->ltt.error > 0.0f)
+    static uint8_t cursor = 0;
+    static uint32_t last_update = 0;
+    static uint8_t afrmin = 147, afrmax = 147;
+    static uint8_t tgtmin = 147, tgtmax = 147;
+    static int16_t cormin = 1000, cormax = 1000;
+
+    const bool doUpdate = millis() - last_update >= 100 && GV.connected;
+    if (doUpdate)
     {
-        // ltt.error => [0.5;1.5]
-        float ego_scale = (pGV->ltt.error < 1) ? (1.0f / pGV->ltt.error) : pGV->ltt.error;
-        // ego_scale => [1.0;2.0]
-        ego_scale = (ego_scale - 1) * 2;
-        // ego_scale => [0.0;2.0]
-        if (ego_scale > 1.0f)
-        {
-            ego_scale = 1.0f;
-        }
-        // ego_scale => [0.0;1.0]
-        if (pGV->ltt.error > 1)
-        {
-            ego_scale = -ego_scale;
-        }
-        // ego_scale => -1.0 = 22 AFR, 1.0 = 9.8 AFR
+        tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
+        tft.drawRect(5, 60 + 0, 82, 42, ILI9341_WHITE);
+        tft.setCursor(5, 60 + 50);
+        tft.print("MAP");
 
-        const int16_t offset = ego_scale * scale_width / 2;
-        const int16_t center = 28 + scale_width / 2;
-        if (offset < 0)
-        {
-            tft.fillRect(center + offset, 12, -offset, 34, ILI9341_GREENYELLOW);
-        }
-        else
-        {
-            tft.fillRect(center, 12, offset, 34, ILI9341_GREENYELLOW);
-        }
+        tft.drawLine(6 + cursor, 61, 6 + cursor, 100, ILI9341_BLACK);
+
+        uint8_t h = 80 + 147 - max(min((tgtmin + tgtmax) / 2, 167), 127);
+        tft.drawPixel(6 + cursor, h, ILI9341_YELLOW);
+
+        h = 80 + max(min(1000 - (cormin + cormax) / 2), 100), -100) / 5;
+        tft.drawPixel(6 + cursor, h, ILI9341_CYAN);
+
+        uint8_t h1 = 80 + 147 - max(min(afrmax, 167), 127);
+        uint8_t h2 = 80 + 147 - max(min(afrmin, 167), 127);
+        tft.drawLine(6 + cursor, h1, 6 + cursor, h2, ILI9341_GREEN);
+
+        uint8_t afrtmp = afrmax;
+        afrmax = afrmin;
+        afrmin = afrtmp;
+
+        uint8_t tfttmp = (tgtmin + tgtmax) / 2;
+        tgtmax = tfttmp;
+        tgtmin = tgttmp;
+
+        int16_t cortmp = (cormin + cormax) / 2;
+        cormax = cortmp;
+        cormin = cortmp;
+
+        last_update = millis();
+        cursor = (cursor < 79) ? cursor + 1 : 0;
+        tft.drawLine(6 + cursor, 61, 6 + cursor, 100, ILI9341_WHITE);
     }
-    tft.drawRect(28, 12, scale_width, 34, ILI9341_WHITE);
 
-    tft.setTextColor(ILI9341_GREENYELLOW, ILI9341_BLACK);
-    tft.setTextSize(1);
-    tft.setCursor(28 - 9, 48);
-    tft.print("2/3");
+    afrmin = min(afrmin, GV.ms.afr1);
+    afrmax = max(afrmax, GV.ms.afr1);
 
-    tft.setCursor(28 + 96 / 2 - 9, 48);
-    tft.print("2/2");
+    tgtmin = min(tgtmin, GV.ms.afrtgt1);
+    tgtmax = max(tgtmax, GV.ms.afrtgt1);
 
-    tft.setCursor(28 + 96 - 9, 48);
-    tft.print("3/2");
+    cormin = min(cormin, GV.ms.egocor1);
+    cormax = max(cormax, GV.ms.egocor1);
+
+    // drawNumber(GV.ms.map, 10, 3, 5, 77 + 50);
+
+    // tft.fillRect(5, 158, 20, 64, ILI9341_BLACK);
+    // tft.fillRect(5, 158 + 64 - GV.ms.map / 1000.0 * 64.0, 20, GV.ms.map / 1000.0 * 64.0, ILI9341_GREEN);
+    // tft.drawRect(5, 158, 20, 64, ILI9341_WHITE);
 }
 
 void updateIcons(GlobalVars* pGV)

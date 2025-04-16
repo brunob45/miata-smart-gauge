@@ -271,7 +271,7 @@ void updateEgoGauge(GlobalVars* pGV)
         uint8_t h = 80 + 147 - max(min((tgtmin + tgtmax) / 2, 167), 127);
         tft.drawPixel(6 + cursor, h, ILI9341_YELLOW);
 
-        h = 80 + max(min(1000 - (cormin + cormax) / 2), 100), -100) / 5;
+        h = 80 + max(min(1000 - (cormin + cormax) / 2, 100), -100) / 5;
         tft.drawPixel(6 + cursor, h, ILI9341_CYAN);
 
         uint8_t h1 = 80 + 147 - max(min(afrmax, 167), 127);
@@ -282,8 +282,8 @@ void updateEgoGauge(GlobalVars* pGV)
         afrmax = afrmin;
         afrmin = afrtmp;
 
-        uint8_t tfttmp = (tgtmin + tgtmax) / 2;
-        tgtmax = tfttmp;
+        uint8_t tgttmp = (tgtmin + tgtmax) / 2;
+        tgtmax = tgttmp;
         tgtmin = tgttmp;
 
         int16_t cortmp = (cormin + cormax) / 2;

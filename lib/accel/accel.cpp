@@ -15,14 +15,17 @@ Adafruit_MPU6050 mpu;
 sensors_event_t accel, gyro, temp;
 SF fusion;
 
+uint32_t last_tx;
+
 // Quaternion filter;
 // const int filtersize = 50;
 } // namespace
 
 void init(void)
 {
-    // Init MSA301
+    // Init MPU6050
     mpu.begin();
+    last_tx = millis();
 }
 
 void update(void)
@@ -50,6 +53,28 @@ void update(void)
     GV.accel.y = ay;
     GV.accel.z = az - 9.81f;
 
+    if (millis() - last_tx > 100)
+    {
+        last_tx = millis();
+        Serial.print(ax);
+        Serial.print(',');
+        Serial.print(ay);
+        Serial.print(',');
+        Serial.print(az);
+        Serial.print(',');
+        Serial.print(gx);
+        Serial.print(',');
+        Serial.print(gy);
+        Serial.print(',');
+        Serial.print(gz);
+        Serial.print(',');
+        Serial.print(fusion.getYaw());
+        Serial.print(',');
+        Serial.print(fusion.getPitch());
+        Serial.print(',');
+        Serial.print(fusion.getRoll());
+        Serial.println();
+    }
     // Quaternion qf;
     // memcpy((void*)&qf, (void*)fusion.getQuat(), sizeof(float) * 4);
     // qf = qf.to_euler();

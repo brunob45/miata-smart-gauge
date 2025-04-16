@@ -76,7 +76,7 @@ THD_FUNCTION(ThreadMain, arg)
             // checkFault(&pGV->fault_code, 1, pGV->ms.sensors2 > 150, pGV->ms.sensors2 < 140);
 
             // Engine off
-            checkFault(&pGV->fault_code, 2, pGV->ms.rpm<50, pGV->ms.rpm> 200);
+            checkFault(&pGV->fault_code, 2, pGV->ms.rpm < 50, pGV->ms.rpm > 200);
 
             if (last_fault != pGV->fault_code)
             {
@@ -88,17 +88,17 @@ THD_FUNCTION(ThreadMain, arg)
         const uint16_t waSize = chUnusedThreadStack(waThdMain, sizeof(waThdMain));
         pGV->waSize = min(pGV->waSize, waSize);
 
-        if (millis() - last_tx > 80)
-        {
-            last_tx = millis();
-            Serial.print(GV.accel.w);
-            Serial.print(' ');
-            Serial.print(GV.accel.x);
-            Serial.print(' ');
-            Serial.print(GV.accel.y);
-            Serial.print(' ');
-            Serial.println(GV.accel.z);
-        }
+        // if (millis() - last_tx > 80)
+        // {
+        //     last_tx = millis();
+        //     Serial.print(GV.accel.w);
+        //     Serial.print(' ');
+        //     Serial.print(GV.accel.x);
+        //     Serial.print(' ');
+        //     Serial.print(GV.accel.y);
+        //     Serial.print(' ');
+        //     Serial.println(GV.accel.z);
+        // }
 
         chThdSleepMilliseconds(0); // tickless OS, yield control to other threads
     }

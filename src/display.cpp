@@ -254,61 +254,35 @@ void updateEgoGauge(GlobalVars* pGV)
 {
     static uint8_t cursor = 0;
     static uint32_t last_update = 0;
-    static uint8_t afrmin = 147, afrmax = 147;
-    static uint8_t tgtmin = 147, tgtmax = 147;
-    static int16_t cormin = 1000, cormax = 1000;
+    static uint8_t afrmin[80], afrmax[80];
+
+    const int16_t x_offset = 28;
+    const int16_t y_offset = 20;
+
+    for (int i = 0; i < 80; i++)
+    {
+        uint8_t h1 = y_offset + 147 - max(min(afrmax[i], 167), 127);
+        uint8_t h2 = y_offset + 147 - max(min(afrmin[i], 167), 127);
+        tft.drawLine(x_offset + cursor, h1, x_offset + cursor, h2, ILI9341_GREEN);
+    }
+    tft.drawLine(x_offset + cursor, y_offset, x_offset + cursor, y_offset + 40, ILI9341_WHITE);
+    tft.drawRect(x_offset, y_offset, 82, 42, ILI9341_WHITE);
 
     const bool doUpdate = millis() - last_update >= 100 && GV.connected;
     if (doUpdate)
     {
-        tft.setTextColor(DISPLAY_FG2, DISPLAY_BG);
-        tft.drawRect(5, 60 + 0, 82, 42, ILI9341_WHITE);
-        tft.setCursor(5, 60 + 50);
-        tft.print("MAP");
-
-        tft.drawLine(6 + cursor, 61, 6 + cursor, 100, ILI9341_BLACK);
-
-        uint8_t h = 80 + 147 - max(min((tgtmin + tgtmax) / 2, 167), 127);
-        tft.drawPixel(6 + cursor, h, ILI9341_YELLOW);
-
-        h = 80 + max(min(1000 - (cormin + cormax) / 2, 100), -100) / 5;
-        tft.drawPixel(6 + cursor, h, ILI9341_CYAN);
-
-        uint8_t h1 = 80 + 147 - max(min(afrmax, 167), 127);
-        uint8_t h2 = 80 + 147 - max(min(afrmin, 167), 127);
-        tft.drawLine(6 + cursor, h1, 6 + cursor, h2, ILI9341_GREEN);
-
-        uint8_t afrtmp = afrmax;
-        afrmax = afrmin;
-        afrmin = afrtmp;
-
-        uint8_t tgttmp = (tgtmin + tgtmax) / 2;
-        tgtmax = tgttmp;
-        tgtmin = tgttmp;
-
-        int16_t cortmp = (cormin + cormax) / 2;
-        cormax = cortmp;
-        cormin = cortmp;
-
         last_update = millis();
-        cursor = (cursor < 79) ? cursor + 1 : 0;
-        tft.drawLine(6 + cursor, 61, 6 + cursor, 100, ILI9341_WHITE);
+
+        uint8_t cursor_next = (cursor < 79) ? cursor + 1 : 0;
+
+        afrmax[cursor_next] = afrmin[cursor];
+        afrmin[cursor_next] = afrmax[cursor];
+
+        cursor = cursor_next;
     }
 
-    afrmin = min(afrmin, GV.ms.afr1);
-    afrmax = max(afrmax, GV.ms.afr1);
-
-    tgtmin = min(tgtmin, GV.ms.afrtgt1);
-    tgtmax = max(tgtmax, GV.ms.afrtgt1);
-
-    cormin = min(cormin, GV.ms.egocor1);
-    cormax = max(cormax, GV.ms.egocor1);
-
-    // drawNumber(GV.ms.map, 10, 3, 5, 77 + 50);
-
-    // tft.fillRect(5, 158, 20, 64, ILI9341_BLACK);
-    // tft.fillRect(5, 158 + 64 - GV.ms.map / 1000.0 * 64.0, 20, GV.ms.map / 1000.0 * 64.0, ILI9341_GREEN);
-    // tft.drawRect(5, 158, 20, 64, ILI9341_WHITE);
+    afrmin[cursor] = min(afrmin[cursor], GV.ms.afr1);
+    afrmax[cursor] = max(afrmax[cursor], GV.ms.afr1);
 }
 
 void updateIcons(GlobalVars* pGV)

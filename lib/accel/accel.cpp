@@ -1,10 +1,8 @@
 #include "accel.h"
 
 #include <Adafruit_MPU6050.h>
-// #include <Quaternion.h>
 #include <SensorFusion.h>
 
-#include "filter.h"
 #include "global.h"
 
 namespace Accel
@@ -16,16 +14,13 @@ sensors_event_t accel, gyro, temp;
 SF fusion;
 
 uint32_t last_tx;
-
-// Quaternion filter;
-// const int filtersize = 50;
 } // namespace
 
 void init(void)
 {
     // Init MPU6050
     mpu.begin();
-    mpu.setFilterBandwidth(MPU6050_BAND_44_HZ);
+    mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
     last_tx = millis();
 }
 
@@ -78,22 +73,6 @@ void update(void)
         Serial.print(temp.temperature);
         Serial.println();
     }
-    // Quaternion qf;
-    // memcpy((void*)&qf, (void*)fusion.getQuat(), sizeof(float) * 4);
-    // qf = qf.to_euler();
-
-    // qf = Quaternion::from_euler_rotation(
-    //     qf.roll,
-    //     qf.pitch,
-    //     0); // qfe.yaw); // ignore yaw orientation
-
-    // qa = qf.rotate(qa); // rotate acceleration by orientation to get the Z axis pointing up
-
-    // filter = (filter * (filtersize - 1) + qa) * (1.0f / filtersize);
-
-    // GV.accel.x = filter.x;
-    // GV.accel.y = filter.y;
-    // GV.accel.z = filter.z - 9.81f; // remove gravity
 }
 
 } // namespace Accel

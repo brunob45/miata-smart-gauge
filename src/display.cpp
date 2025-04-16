@@ -254,26 +254,29 @@ void updateEgoGauge(GlobalVars* pGV)
 {
     static uint8_t cursor = 0;
     static uint32_t last_update = 0;
-    static uint8_t afrmin[80], afrmax[80];
+    static uint8_t afrmin[80], afrmax[80], afrtgt[80];
 
     const int16_t x_offset = 28;
     const int16_t y_offset = 20;
 
     for (int i = 0; i < 80; i++)
     {
-        uint8_t h1 = y_offset + 147 - max(min(afrmax[i], 167), 127);
-        uint8_t h2 = y_offset + 147 - max(min(afrmin[i], 167), 127);
-        tft.drawLine(x_offset + cursor, h1, x_offset + cursor, h2, ILI9341_GREEN);
+        tft.drawPixel(x_offset + i, y_offset + 167 - max(min(afrtgt[i], 167), 127), ILI9341_CYAN);
+        uint8_t h1 = y_offset + 167 - max(min(afrmax[i], 167), 127);
+        uint8_t h2 = y_offset + 167 - max(min(afrmin[i], 167), 127);
+        tft.drawLine(x_offset + i, h1, x_offset + i, h2, ILI9341_GREEN);
     }
     tft.drawLine(x_offset + cursor, y_offset, x_offset + cursor, y_offset + 40, ILI9341_WHITE);
-    tft.drawRect(x_offset, y_offset, 82, 42, ILI9341_WHITE);
+    tft.drawRect(x_offset - 1, y_offset - 1, 82, 43, ILI9341_WHITE); // graph is 80x41, draw rectangle *around* it
 
-    const bool doUpdate = millis() - last_update >= 100 && GV.connected;
+    const bool doUpdate = millis() - last_update >= 125 && GV.connected; // 10 seconds / 80 pixels = 125ms
     if (doUpdate)
     {
         last_update = millis();
 
         uint8_t cursor_next = (cursor < 79) ? cursor + 1 : 0;
+
+        afrtgt[cursor] = GV.ms.afrtgt1;
 
         afrmax[cursor_next] = afrmin[cursor];
         afrmin[cursor_next] = afrmax[cursor];

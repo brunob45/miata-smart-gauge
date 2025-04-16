@@ -13,6 +13,8 @@ Adafruit_MPU6050 mpu;
 sensors_event_t accel, gyro, temp;
 SF fusion;
 
+float gyro_sum[3];
+uint32_t gyro_count;
 uint32_t last_tx;
 } // namespace
 
@@ -26,9 +28,6 @@ void init(void)
 
 void update(void)
 {
-    static float sum[3];
-    static uint32_t count;
-
     // Update accel values
     mpu.getEvent(&accel, &gyro, &temp);
 
@@ -42,10 +41,10 @@ void update(void)
     const float gy = gyro.gyro.y + 0.023081699f;
     const float gz = gyro.gyro.x + 0.000516514f;
 
-    sum[0] += gx;
-    sum[1] += gy;
-    sum[2] += gz;
-    count += 1;
+    gyro_sum[0] -= gyro.gyro.x;
+    gyro_sum[1] -= gyro.gyro.y;
+    gyro_sum[2] -= gyro.gyro.z;
+    gyro_count += 1;
 
     const float deltat = fusion.deltatUpdate(); // this have to be done before calling the fusion update
     fusion.MahonyUpdate(                        // mahony is suggested if there isn't the mag and the mcu is slow
@@ -63,13 +62,13 @@ void update(void)
         if (false)
         {
             // gyro calibration
-            Serial.print(sum[0]);
+            Serial.print(gyro_sum[0]);
             Serial.print(',');
-            Serial.print(sum[1]);
+            Serial.print(gyro_sum[1]);
             Serial.print(',');
-            Serial.print(sum[2]);
+            Serial.print(gyro_sum[2]);
             Serial.print(',');
-            Serial.print(count);
+            Serial.print(gyro_count);
         }
         else
         {

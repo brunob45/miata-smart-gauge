@@ -25,6 +25,7 @@ void init(void)
 {
     // Init MPU6050
     mpu.begin();
+    mpu.setFilterBandwidth(MPU6050_BAND_44_HZ);
     last_tx = millis();
 }
 
@@ -34,9 +35,9 @@ void update(void)
     mpu.getEvent(&accel, &gyro, &temp);
 
     // invert x & z axis to orient the board correctly
-    const float ax = accel.acceleration.z * 0.969367589f + 0.465296443f; // [-10.60,9.64]
-    const float ay = accel.acceleration.y * 0.993920973f + 0.079513678f; // [-9.95,9.79]
-    const float az = accel.acceleration.x * 0.991911021f - 0.386845298f; // [-9.50,10.28]
+    const float ax = accel.acceleration.z * 0.969367589f + 0.465296443f;  // [-10.60,9.64]
+    const float ay = accel.acceleration.y * 0.993920973f + 0.079513678f;  // [-9.95,9.79]
+    const float az = -accel.acceleration.x * 0.991911021f + 0.386845298f; // [-9.50,10.28]
 
     // correct gyro offset to minimize drift
     const float gx = gyro.gyro.z + 0.01610f;

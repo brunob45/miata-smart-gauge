@@ -1,6 +1,7 @@
 #include "accel.h"
 
 #include <Adafruit_MPU6050.h>
+#include <Quaternion.h>
 #include <SensorFusion.h>
 
 #include "global.h"
@@ -32,18 +33,18 @@ void update(void)
     mpu.getEvent(&accel, &gyro, &temp);
 
     // invert x & z axis to orient the board correctly
-    const float ax = accel.acceleration.z * 0.969367589f + 0.465296443f;  // [-10.60,9.64]
-    const float ay = accel.acceleration.y * 0.993920973f + 0.079513678f;  // [-9.95,9.79]
-    const float az = -accel.acceleration.x * 0.991911021f + 0.386845298f; // [-9.50,10.28]
+    const float ax = accel.acceleration.z * 0.969367589f + 0.465296443f;    // [-10.60,9.64]
+    const float ay = accel.acceleration.y * 0.993920973f + 0.079513678f;    // [-9.95,9.79]
+    const float az = -(accel.acceleration.x * 0.991911021f - 0.386845298f); // [-9.50,10.28]
 
     // correct gyro offset to minimize drift
     const float gx = gyro.gyro.z + 0.026756891f;
     const float gy = gyro.gyro.y + 0.023081699f;
-    const float gz = gyro.gyro.x + 0.000516514f;
+    const float gz = -(gyro.gyro.x + 0.000516514f);
 
-    gyro_sum[0] -= gyro.gyro.x;
-    gyro_sum[1] -= gyro.gyro.y;
-    gyro_sum[2] -= gyro.gyro.z;
+    gyro_sum[0] += gyro.gyro.x;
+    gyro_sum[1] += gyro.gyro.y;
+    gyro_sum[2] += gyro.gyro.z;
     gyro_count += 1;
 
     const float deltat = fusion.deltatUpdate(); // this have to be done before calling the fusion update
@@ -52,14 +53,17 @@ void update(void)
         ax, ay, az,
         deltat);
 
-    GV.accel.x = ax;
-    GV.accel.y = ay;
-    GV.accel.z = az - 9.81f;
+    Quaternion* qf = (Quaternion*)fusion.getQuat();
+    Quaternion qa = qf->rotate(Quaternion(ax, ay, az));
+
+    GV.accel.x = qa.x;
+    GV.accel.y = qa.y;
+    GV.accel.z = qa.z;
 
     if (millis() - last_tx > 100)
     {
         last_tx = millis();
-        if (false)
+        if (true)
         {
             // gyro calibration
             Serial.print(gyro_sum[0]);

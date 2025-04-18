@@ -56,9 +56,10 @@ void update(void)
     Quaternion* qf = (Quaternion*)fusion.getQuat();
     Quaternion qa = qf->rotate(Quaternion(ax, ay, az));
 
-    GV.accel.x = qa.x;
-    GV.accel.y = qa.y;
-    GV.accel.z = qa.z;
+    // pure vector, a equals 0
+    GV.accel.x = qa.b;
+    GV.accel.y = qa.c;
+    GV.accel.z = qa.d;
 
     if (millis() - last_tx > 100)
     {

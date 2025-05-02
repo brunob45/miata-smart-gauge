@@ -23,7 +23,7 @@ void init(void)
 {
     // Init MPU6050
     mpu.begin();
-    mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
+    mpu.setFilterBandwidth(MPU6050_BAND_5_HZ); // 5, 10, 21, 44, ...
     last_tx = millis();
 }
 

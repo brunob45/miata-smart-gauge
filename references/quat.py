@@ -29,18 +29,18 @@ def to_euler(quat):
 
     # Check to circumvent gimbal lock - assume yaw is 0
     test = w * y - z * x
-    if test > 0.4999:  # asin(2*0.4999) = 88.85 degrees
-        roll = -2 * np.atan2(x, w)
+    if test > 0.4999:  # arcsin(2*0.4999) = 88.85 degrees
+        roll = -2 * np.arctan2(x, w)
         pitch = 0.5 * np.pi
         yaw = 0
     elif test < -0.4999:
-        roll = 2 * np.atan2(x, w)
+        roll = 2 * np.arctan2(x, w)
         pitch = -0.5 * np.pi
         yaw = 0
     else:
-        roll = np.atan2(2 * (w * x + y * z), 1 - 2 * (x * x + y * y))
-        pitch = np.asin(2 * test)
-        yaw = np.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z))
+        roll = np.arctan2(2 * (w * x + y * z), 1 - 2 * (x * x + y * y))
+        pitch = np.arcsin(2 * test)
+        yaw = np.arctan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z))
 
     return (np.rad2deg(roll), np.rad2deg(pitch), np.rad2deg(yaw))
 

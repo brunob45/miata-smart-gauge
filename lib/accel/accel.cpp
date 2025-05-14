@@ -37,14 +37,14 @@ void update(void)
     const float ay = accel.acceleration.y * 0.993920973f + 0.079513678f;    // [-9.95,9.79]
     const float az = -(accel.acceleration.x * 0.991911021f - 0.386845298f); // [-9.50,10.28]
 
-    // correct gyro offset to minimize drift
-    const float gx = gyro.gyro.z + 0.026756891f;
-    const float gy = gyro.gyro.y + 0.023081699f;
-    const float gz = -(gyro.gyro.x + 0.000516514f);
+    // correct gyro offset to minimize drift (gx:-0.05,gy:0.53,gz:0.37,n:5002)
+    const float gx = gyro.gyro.z + 0.02568951F;
+    const float gy = gyro.gyro.y + 0.021336365F;
+    const float gz = -(gyro.gyro.x + 0.001182682F);
 
-    gyro_sum[0] += gyro.gyro.x;
-    gyro_sum[1] += gyro.gyro.y;
-    gyro_sum[2] += gyro.gyro.z;
+    gyro_sum[0] += gx;
+    gyro_sum[1] += gy;
+    gyro_sum[2] += gz;
     gyro_count += 1;
 
     const float deltat = fusion.deltatUpdate(); // this have to be done before calling the fusion update

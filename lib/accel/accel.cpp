@@ -53,10 +53,11 @@ void update(void)
         ax, ay, az,
         deltat);
 
-    Quaternion* qf = (Quaternion*)fusion.getQuat();
-    Quaternion qa = qf->rotate(Quaternion(ax, ay, az));
+    // Quaternion qf = (*Quaternion*)fusion.getQuat();
+    Quaternion qf = Quaternion::from_euler_rotation(fusion.getRollRadians(), fusion.getPitchRadians(), 0); // assume yaw==0
+    Quaternion qa = qf.rotate(Quaternion(ax, ay, az));
 
-    // pure vector, a equals 0
+    // pure vector, qa.a equals 0
     GV.accel.x = qa.b;
     GV.accel.y = qa.c;
     GV.accel.z = qa.d;

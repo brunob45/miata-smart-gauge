@@ -5,7 +5,7 @@ from pathlib import Path
 
 # get latest commit hash
 result = subprocess.run(
-    ["git", "rev-parse", "--short HEAD"], capture_output=True, text=True
+    ["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True
 )
 version = result.stdout.strip()
 
